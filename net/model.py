@@ -93,6 +93,8 @@ class FeedForward(nn.Module):
 
         self.dropout = nn.Dropout(0.2)
 
+        # self.is_dropout = is_dropout
+
     def forward(self, x):
         x = self.project_in(x)
         x1, x2 = self.dwconv(x).chunk(2, dim=1)

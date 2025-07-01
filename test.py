@@ -110,7 +110,7 @@ if __name__ == '__main__':
     parser.add_argument('--derain_path', type=str, default="/media/rqy/hhh/all-in-one-image-restoration/dataset/deraining/", help='save path of test raining images')
     parser.add_argument('--dehaze_path', type=str, default="/media/rqy/hhh/all-in-one-image-restoration/dataset/dehazing/SOTS/outdoor/", help='save path of test hazy images')
     parser.add_argument('--output_path', type=str, default="output/", help='output save path')
-    parser.add_argument('--ckpt_name', type=str, default="train_ckpt/restormer_prompt/epoch=119-step=515760.ckpt", help='checkpoint save path')
+    parser.add_argument('--ckpt_name', type=str, default="train_ckpt/restormer_dropout1/epoch=112-step=485674.ckpt", help='checkpoint save path')
     testopt = parser.parse_args()
     
     
