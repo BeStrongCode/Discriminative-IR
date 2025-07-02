@@ -163,7 +163,12 @@ class PromptIRModel(pl.LightningModule):
         scheduler = LinearWarmupCosineAnnealingLR(optimizer=optimizer,warmup_epochs=15,max_epochs=150)
 
         return [optimizer],[scheduler]
-
+    def extract_encoder_features(self, x):
+        # 这是你要新增的方法
+        _, latent = self.net(x)
+        # feat 的 shape 应该是 [B, C, H, W]，你可以选择平均池化或 flatten 处理成 [B, C] 向量
+        feat = torch.mean(latent, dim=[2, 3])  # global average pooling
+        return feat
 
 
 
@@ -173,7 +178,8 @@ class RestormerModel(pl.LightningModule):
         super().__init__()
         self.net = Restormer()
         self.loss_fn = nn.L1Loss()
-
+        # 冻结编码层
+        self.freeze_encoder_layer()
     def forward(self, x):
         restored = self.net(x)
         return restored
@@ -203,6 +209,26 @@ class RestormerModel(pl.LightningModule):
 
         return [optimizer], [scheduler]
 
+    def extract_encoder_features(self, x):
+        # 这是你要新增的方法
+        _, latent = self.net(x)
+        # feat 的 shape 应该是 [B, C, H, W]，你可以选择平均池化或 flatten 处理成 [B, C] 向量
+        feat = torch.mean(latent, dim=[2, 3])  # global average pooling
+        return feat
+
+    def freeze_encoder_layer(self):
+        # 冻结所有相关层的参数
+        for param in self.net.patch_embed.parameters():
+            param.requires_grad = False
+        for param in self.net.encoder_level1.parameters():
+            param.requires_grad = False
+        for param in self.net.encoder_level2.parameters():
+            param.requires_grad = False
+        for param in self.net.encoder_level3.parameters():
+            param.requires_grad = False
+        for param in self.net.latent.parameters():
+            param.requires_grad = False
+
 
 def main():
     print("Options")
@@ -217,8 +243,8 @@ def main():
     trainloader = DataLoader(trainset, batch_size=opt.batch_size, pin_memory=True, shuffle=True,
                              drop_last=True, num_workers=opt.num_workers)
 
-
-    model = RestormerModel()
+    pre_train_path = 'train_ckpt/restormer***/epoch=119-step=515760.ckpt'
+    model = RestormerModel().load_from_checkpoint(pre_train_path,strict=False)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--denoise_path', type=str, default='/media/rqy/hhh/all-in-one-image-restoration/dataset/denoising/CBSD68/')

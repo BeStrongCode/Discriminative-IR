@@ -164,3 +164,6 @@ wandb
 test
 ckpt
 output
+
+images
+clear_images

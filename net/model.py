@@ -108,16 +108,16 @@ class FeedForward(nn.Module):
 ##########################################################################
 ## Multi-DConv Head Transposed Self-Attention (MDTA)
 class Attention(nn.Module):
-    def __init__(self, dim, num_heads, bias, is_prompt=False):
+    def __init__(self, dim, num_heads, bias):
         super(Attention, self).__init__()
         self.num_heads = num_heads
         self.temperature = nn.Parameter(torch.ones(num_heads, 1, 1))
-        self.is_prompt = is_prompt
+        # self.is_prompt = is_prompt
         self.qkv = nn.Conv2d(dim, dim*3, kernel_size=1, bias=bias)
         self.qkv_dwconv = nn.Conv2d(dim*3, dim*3, kernel_size=3, stride=1, padding=1, groups=dim*3, bias=bias)
         self.project_out = nn.Conv2d(dim, dim, kernel_size=1, bias=bias)
-
-        self.prompt = nn.Parameter(torch.ones(num_heads, dim//num_heads, 1))
+        #
+        # self.prompt = nn.Parameter(torch.ones(num_heads, dim//num_heads, 1))
 
 
     def forward(self, x):
@@ -130,10 +130,10 @@ class Attention(nn.Module):
         k = rearrange(k, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
         v = rearrange(v, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
 
-        if self.is_prompt:
-            q = q + self.prompt
-            k = k + self.prompt
-            v = v + self.prompt
+        # if self.is_prompt:
+        #     q = q + self.prompt
+        #     k = k + self.prompt
+        #     v = v + self.prompt
 
 
         q = torch.nn.functional.normalize(q, dim=-1)
@@ -197,7 +197,7 @@ class TransformerBlock(nn.Module):
         super(TransformerBlock, self).__init__()
 
         self.norm1 = LayerNorm(dim, LayerNorm_type)
-        self.attn = Attention(dim, num_heads, bias, is_prompt=False)
+        self.attn = Attention(dim, num_heads, bias)
         self.norm2 = LayerNorm(dim, LayerNorm_type)
         self.ffn = FeedForward(dim, ffn_expansion_factor, bias)
 
@@ -348,7 +348,7 @@ class PromptIR(nn.Module):
         inp_enc_level4 = self.down3_4(out_enc_level3)        
         latent = self.latent(inp_enc_level4)
         if self.decoder:
-            dec3_param = self.prompt3(latent)
+            dec3_param,weight1 = self.prompt3(latent)
 
             latent = torch.cat([latent, dec3_param], 1)
             latent = self.noise_level3(latent)
@@ -361,7 +361,7 @@ class PromptIR(nn.Module):
 
         out_dec_level3 = self.decoder_level3(inp_dec_level3) 
         if self.decoder:
-            dec2_param = self.prompt2(out_dec_level3)
+            dec2_param,weight2 = self.prompt2(out_dec_level3)
             out_dec_level3 = torch.cat([out_dec_level3, dec2_param], 1)
             out_dec_level3 = self.noise_level2(out_dec_level3)
             out_dec_level3 = self.reduce_noise_level2(out_dec_level3)
@@ -373,7 +373,7 @@ class PromptIR(nn.Module):
         out_dec_level2 = self.decoder_level2(inp_dec_level2)
         if self.decoder:
            
-            dec1_param = self.prompt1(out_dec_level2)
+            dec1_param,weight3 = self.prompt1(out_dec_level2)
             out_dec_level2 = torch.cat([out_dec_level2, dec1_param], 1)
             out_dec_level2 = self.noise_level1(out_dec_level2)
             out_dec_level2 = self.reduce_noise_level1(out_dec_level2)
@@ -388,8 +388,8 @@ class PromptIR(nn.Module):
 
         out_dec_level1 = self.output(out_dec_level1) + inp_img
 
-
-        return out_dec_level1
+        weights = torch.cat([weight1,weight2,weight3],dim=0)
+        return out_dec_level1,weights
 
 
 
@@ -461,8 +461,12 @@ class Restormer(nn.Module):
         if self.dual_pixel_task:
             self.skip_conv = nn.Conv2d(dim, int(dim * 2 ** 1), kernel_size=1, bias=bias)
         ###########################
-
         self.output = nn.Conv2d(int(dim * 2 ** 1), out_channels, kernel_size=3, stride=1, padding=1, bias=bias)
+
+        self.prompt3 = PromptGenBlock(prompt_dim=320, prompt_len=5, prompt_size=16, lin_dim=384)
+        self.noise_level3 = TransformerBlock(dim=int(dim*2**2) + 512, num_heads=heads[2], ffn_expansion_factor=ffn_expansion_factor, bias=bias, LayerNorm_type=LayerNorm_type)
+        self.reduce_noise_level3 = nn.Conv2d(int(dim*2**2)+512,int(dim*2**2*2),kernel_size=1,bias=bias)
+
 
     def forward(self, inp_img):
 
@@ -481,6 +485,12 @@ class Restormer(nn.Module):
         # encoder_block4 h/8,w/8,8c
         inp_enc_level4 = self.down3_4(out_enc_level3)
         latent = self.latent(inp_enc_level4)
+
+        dec3_param = self.prompt3(latent)
+
+        latent = torch.cat([latent, dec3_param], 1)
+        latent = self.noise_level3(latent)
+        latent = self.reduce_noise_level3(latent)
 
 
         inp_dec_level3 = self.up4_3(latent)
