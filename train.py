@@ -179,7 +179,7 @@ class RestormerModel(pl.LightningModule):
         self.net = Restormer()
         self.loss_fn = nn.L1Loss()
         # 冻结编码层
-        self.freeze_encoder_layer()
+        # self.freeze_encoder_layer()
     def forward(self, x):
         restored = self.net(x)
         return restored

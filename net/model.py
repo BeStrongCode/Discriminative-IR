@@ -91,7 +91,7 @@ class FeedForward(nn.Module):
 
         self.project_out = nn.Conv2d(hidden_features, dim, kernel_size=1, bias=bias)
 
-        self.dropout = nn.Dropout(0.2)
+        # self.dropout = nn.Dropout(0.2)
 
         # self.is_dropout = is_dropout
 
@@ -99,7 +99,7 @@ class FeedForward(nn.Module):
         x = self.project_in(x)
         x1, x2 = self.dwconv(x).chunk(2, dim=1)
         x = F.gelu(x1) * x2
-        x = self.dropout(x)
+        # x = self.dropout(x)
         x = self.project_out(x)
         return x
 
@@ -463,9 +463,9 @@ class Restormer(nn.Module):
         ###########################
         self.output = nn.Conv2d(int(dim * 2 ** 1), out_channels, kernel_size=3, stride=1, padding=1, bias=bias)
 
-        self.prompt3 = PromptGenBlock(prompt_dim=320, prompt_len=5, prompt_size=16, lin_dim=384)
-        self.noise_level3 = TransformerBlock(dim=int(dim*2**2) + 512, num_heads=heads[2], ffn_expansion_factor=ffn_expansion_factor, bias=bias, LayerNorm_type=LayerNorm_type)
-        self.reduce_noise_level3 = nn.Conv2d(int(dim*2**2)+512,int(dim*2**2*2),kernel_size=1,bias=bias)
+        # self.prompt3 = PromptGenBlock(prompt_dim=320, prompt_len=5, prompt_size=16, lin_dim=384)
+        # self.noise_level3 = TransformerBlock(dim=int(dim*2**2) + 512, num_heads=heads[2], ffn_expansion_factor=ffn_expansion_factor, bias=bias, LayerNorm_type=LayerNorm_type)
+        # self.reduce_noise_level3 = nn.Conv2d(int(dim*2**2)+512,int(dim*2**2*2),kernel_size=1,bias=bias)
 
 
     def forward(self, inp_img):
@@ -486,11 +486,11 @@ class Restormer(nn.Module):
         inp_enc_level4 = self.down3_4(out_enc_level3)
         latent = self.latent(inp_enc_level4)
 
-        dec3_param = self.prompt3(latent)
-
-        latent = torch.cat([latent, dec3_param], 1)
-        latent = self.noise_level3(latent)
-        latent = self.reduce_noise_level3(latent)
+        # dec3_param = self.prompt3(latent)
+        #
+        # latent = torch.cat([latent, dec3_param], 1)
+        # latent = self.noise_level3(latent)
+        # latent = self.reduce_noise_level3(latent)
 
 
         inp_dec_level3 = self.up4_3(latent)
