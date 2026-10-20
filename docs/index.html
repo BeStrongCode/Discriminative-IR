@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- TODO: 替换论文标题、描述，以及社交分享信息。所有资源路径兼容 GitHub Pages。 -->
+    <title>All-in-One Image Restoration | Project Page</title>
+    <meta name="description" content="Project page for an all-in-one image restoration paper. Paper details, method, results, and citation will be added here.">
+    <meta name="theme-color" content="#f7f8f5">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="All-in-One Image Restoration">
+    <meta property="og:description" content="Paper details, method, results, and citation.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/styles.css">
+    <script src="assets/script.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="#top" aria-label="Discriminative-IR home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span>Discriminative<span class="brand-light">-IR</span></span>
+        </a>
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="#abstract">Abstract</a>
+          <a href="#method">Method</a>
+          <a href="#results">Results</a>
+          <a href="#citation">Citation <span aria-hidden="true">↗</span></a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero container" id="top" aria-labelledby="paper-title">
+        <!-- TODO: 替换会议 / 期刊、标题、作者及单位。上标与作者备注可按需删除。 -->
+        <p class="venue"><span class="status-dot" aria-hidden="true"></span> [Conference / Journal · Year]</p>
+        <h1 id="paper-title">All-in-One<br><em>Image Restoration.</em></h1>
+        <p class="hero-summary">[A one-sentence summary of your paper’s key idea<br class="desktop-break"> and what makes your approach distinctive.]</p>
+        <div class="authors" aria-label="Paper authors">
+          <span>First Author<sup>1,*</sup></span>
+          <span>Second Author<sup>2,*</sup></span>
+          <span>Third Author<sup>1,†</sup></span>
+        </div>
+        <p class="affiliations"><span><sup>1</sup> First Institution</span><span><sup>2</sup> Second Institution</span></p>
+        <p class="author-notes">* Equal contribution <span>·</span> † Corresponding author</p>
+
+        <!-- TODO: 在 assets/script.js 的 PROJECT_LINKS 中填写真实链接后，按钮会自动启用。 -->
+        <div class="paper-links" aria-label="Paper resources">
+          <a class="resource-link resource-link-primary" data-resource="paper" aria-disabled="true" title="Paper link coming soon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8 12h8M8 16h6"/></svg>
+            Paper <span class="resource-status">Soon</span>
+          </a>
+          <a class="resource-link" data-resource="arxiv" aria-disabled="true" title="arXiv link coming soon"><span class="arxiv-icon" aria-hidden="true">a<span>χ</span></span> arXiv <span class="resource-status">Soon</span></a>
+          <a class="resource-link" data-resource="code" aria-disabled="true" title="Code link coming soon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-14-2 18"/></svg>
+            Code <span class="resource-status">Soon</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="teaser container" aria-labelledby="teaser-title">
+        <div class="teaser-heading">
+          <div><p class="eyebrow">A clearer picture</p><h2 id="teaser-title">Restoration, at a glance.</h2></div>
+          <span class="interaction-hint"><span aria-hidden="true">↔</span> Drag to compare</span>
+        </div>
+        <!-- TODO: 在 script.js 的 RESTORATION_TASKS 中设置每个任务的输入图和输出图。 -->
+        <div class="task-tabs" role="tablist" aria-label="Restoration tasks">
+          <button class="task-tab" id="tab-denoising" type="button" role="tab" aria-selected="true" aria-controls="comparison-panel" tabindex="0" data-task="denoising"><span class="task-number">01</span> Denoising</button>
+          <button class="task-tab" id="tab-deraining" type="button" role="tab" aria-selected="false" aria-controls="comparison-panel" tabindex="-1" data-task="deraining"><span class="task-number">02</span> Deraining</button>
+          <button class="task-tab" id="tab-dehazing" type="button" role="tab" aria-selected="false" aria-controls="comparison-panel" tabindex="-1" data-task="dehazing"><span class="task-number">03</span> Dehazing</button>
+          <button class="task-tab" id="tab-deblurring" type="button" role="tab" aria-selected="false" aria-controls="comparison-panel" tabindex="-1" data-task="deblurring"><span class="task-number">04</span> Deblurring</button>
+          <button class="task-tab" id="tab-lowlight" type="button" role="tab" aria-selected="false" aria-controls="comparison-panel" tabindex="-1" data-task="lowlight"><span class="task-number">05</span> Low-light</button>
+        </div>
+        <figure class="comparison-figure">
+          <div class="comparison-panel" id="comparison-panel" role="tabpanel" aria-labelledby="tab-denoising">
+            <div class="comparison" data-degradation="denoising" style="--split: 50%">
+              <img class="comparison-image comparison-after" src="assets/scene-placeholder.svg" alt="Illustrative coastal scene used as a restored output placeholder" width="1600" height="800" draggable="false">
+              <div class="comparison-before">
+                <img class="comparison-image" src="assets/scene-placeholder.svg" alt="Illustrative degraded input placeholder for denoising" width="1600" height="800" draggable="false">
+                <div class="degradation-overlay" aria-hidden="true"></div>
+              </div>
+              <span class="image-label image-label-before"><span class="label-dot" aria-hidden="true"></span> Degraded input</span>
+              <span class="image-label image-label-after"><span class="label-dot" aria-hidden="true"></span> Restored output</span>
+              <div class="comparison-divider" aria-hidden="true"><span class="comparison-handle">‹<span></span>›</span></div>
+              <label class="sr-only" for="comparison-slider">Compare denoising: move the divider between degraded input and restored output</label>
+              <input id="comparison-slider" class="comparison-slider" type="range" min="0" max="100" value="50" aria-valuetext="50% degraded input, 50% restored output">
+              <span class="scene-note" aria-hidden="true">A view worth restoring.</span>
+            </div>
+          </div>
+          <figcaption class="comparison-caption"><span><span class="caption-marker" aria-hidden="true"></span> Illustrative placeholder · Replace with actual restoration pairs.</span><span id="task-caption">Denoising · Synthetic noise for layout preview only.</span></figcaption>
+        </figure>
+        <noscript><p class="noscript-note">Enable JavaScript to switch restoration tasks and drag the comparison divider.</p></noscript>
+      </section>
+
+      <section class="paper-section container" id="abstract" aria-labelledby="abstract-title">
+        <div class="section-label"><span class="section-number">01 / Overview</span><h2 id="abstract-title">Abstract</h2></div>
+        <div class="section-content">
+          <!-- TODO: 在这里粘贴论文摘要。强调内容可使用 <strong>。 -->
+          <p class="abstract-lead">[Introduce the central challenge of all-in-one image restoration and the motivation behind your work.]</p>
+          <p>[Describe your proposed method, its main design choices, and how it addresses different image degradations. Summarize the most important findings and the value of your approach. Replace this text with your paper’s abstract.]</p>
+          <div class="contributions">
+            <h3>Key contributions</h3>
+            <ol>
+              <li><span class="contribution-index">01</span><p><strong>[Core idea]</strong> Describe the central insight or formulation introduced in this work.</p></li>
+              <li><span class="contribution-index">02</span><p><strong>[Method design]</strong> Highlight the main technical contribution of your framework.</p></li>
+              <li><span class="contribution-index">03</span><p><strong>[Experimental finding]</strong> Summarize a result supported by your experiments.</p></li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section class="method-section" id="method" aria-labelledby="method-title">
+        <div class="container">
+          <div class="section-heading"><div><span class="section-number">02 / Approach</span><h2 id="method-title">The method, in one view.</h2></div><p>[Explain the intuition behind your framework<br class="desktop-break"> in one or two short sentences.]</p></div>
+          <!-- TODO: 替换为真实方法图，保留 figure 和 figcaption 即可。SVG / PNG / WebP 均可。 -->
+          <figure class="method-figure">
+            <div class="figure-toolbar"><span><span class="status-dot" aria-hidden="true"></span> Framework overview</span><span class="placeholder-tag">Placeholder schematic</span></div>
+            <div class="method-image-wrap"><img src="assets/method-placeholder.svg" alt="Placeholder architecture diagram: degraded input passes through Module A and Module B to produce a restored output. Replace with the paper’s actual architecture." width="1120" height="350" loading="lazy"></div>
+            <figcaption><strong>Figure 1.</strong> [An overview of your method. Explain the input, the key modules, and the restoration process. Replace this schematic and caption with your actual architecture.]</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="results-section container" id="results" aria-labelledby="results-title">
+        <div class="section-heading"><div><span class="section-number">03 / Experiments</span><h2 id="results-title">Results across tasks.</h2></div><p>[Add your evaluation setting, datasets,<br class="desktop-break"> and the main experimental takeaway.]</p></div>
+        <div class="table-heading"><h3>Quantitative comparison</h3><span>PSNR (dB) ↑ <span class="table-heading-separator">/</span> Higher is better</span></div>
+        <!-- TODO: 替换方法、任务、数据集和指标；当前所有破折号都是待填写数据。 -->
+        <div class="table-scroll" role="region" aria-label="Quantitative comparison across restoration tasks, scroll horizontally on small screens" tabindex="0">
+          <table class="results-table">
+            <caption class="sr-only">Placeholder quantitative comparison. All metric values are awaiting experimental results.</caption>
+            <thead><tr><th scope="col">Method</th><th scope="col">Denoising<span>[Dataset]</span></th><th scope="col">Deraining<span>[Dataset]</span></th><th scope="col">Dehazing<span>[Dataset]</span></th><th scope="col">Deblurring<span>[Dataset]</span></th><th scope="col">Low-light<span>[Dataset]</span></th></tr></thead>
+            <tbody>
+              <tr><th scope="row">[Baseline A]<span>[Venue, Year]</span></th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+              <tr><th scope="row">[Baseline B]<span>[Venue, Year]</span></th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+              <tr><th scope="row">[Baseline C]<span>[Venue, Year]</span></th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+              <tr class="ours-row"><th scope="row">[Your method]<span>Ours</span></th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">All entries are placeholders. Add measured values, evaluation protocols, and references before publication.</p>
+        <!-- TODO: 可在此追加消融实验表、更多可视化图片或视频。 -->
+        <div class="results-note"><span aria-hidden="true">↗</span><p><strong>More to explore.</strong> [Use this space for ablations, generalization results, or a link to supplementary material.]</p></div>
+      </section>
+
+      <section class="citation-section" id="citation" aria-labelledby="citation-title">
+        <div class="container citation-layout">
+          <div><span class="section-number">04 / Reference</span><h2 id="citation-title">Build on this work.</h2><p>If you find our work useful,<br>please consider citing our paper.</p><span class="citation-pending">Citation details to be added.</span></div>
+          <div class="citation-box">
+            <div class="citation-toolbar"><span>BibTeX</span><button class="copy-button" id="copy-citation" type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M12 7V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h3"/></svg><span>Copy</span></button></div>
+            <!-- TODO: 替换整段 BibTeX。复制按钮会直接读取这里的文本。 -->
+            <pre><code id="bibtex">@inproceedings{your_citation_key,
+  title     = {Your Paper Title},
+  author    = {First Author and Second Author},
+  booktitle = {Conference Name},
+  year      = {20XX}
+}</code></pre>
+            <p class="sr-only" id="copy-status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer"><div class="container footer-inner"><div><a class="footer-brand" href="#top">Discriminative-IR</a><p>[Add acknowledgments, contact information, or a template credit here.]</p></div><a class="back-to-top" href="#top">Back to top <span aria-hidden="true">↑</span></a></div></footer>
+  </body>
+</html>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="350" viewBox="0 0 1120 350" fill="none">
+  <title>Placeholder method overview — replace with your actual architecture</title>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="m1 1 5 3-5 3" fill="none" stroke="#769484" stroke-width="1.5"/></marker><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".65" fill="#d5ded2"/></pattern></defs>
+  <path fill="url(#grid)" d="M0 0h1120v350H0z"/>
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <rect x="282" y="77" width="556" height="198" rx="12" fill="#edf2e9" stroke="#ccdbca" stroke-dasharray="5 5"/>
+    <rect x="437" y="64" width="245" height="25" rx="5" fill="#f7f8f5"/>
+    <text x="560" y="81" fill="#527762" text-anchor="middle" font-size="11" letter-spacing="1.2">[ YOUR RESTORATION FRAMEWORK ]</text>
+    <rect x="49" y="112" width="146" height="127" rx="7" fill="#e3e9df" stroke="#cad5c5"/>
+    <path d="m62 211 35-49 27 25 25-39 32 63z" fill="#9caf9d"/><circle cx="162" cy="138" r="11" fill="#c5d2b9"/>
+    <path d="m62 135 16 0m13 15h28m17 66h30m-92-18h19" stroke="#f7f8f5" stroke-opacity=".8" stroke-width="3"/>
+    <text x="122" y="267" fill="#57645e" text-anchor="middle" font-size="12">Degraded input</text>
+    <text x="122" y="289" fill="#8a9389" text-anchor="middle" font-size="10">x</text>
+    <path d="M211 175h88" stroke="#769484" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <rect x="321" y="125" width="202" height="102" rx="6" fill="#f7f8f5" stroke="#c2d1bf"/>
+    <rect x="341" y="145" width="27" height="24" rx="3" fill="#e1eadb" stroke="#aabfa6"/><rect x="348" y="151" width="27" height="24" rx="3" fill="#d0dfc9" stroke="#91ac8a"/><rect x="355" y="157" width="27" height="24" rx="3" fill="#bacfb4" stroke="#7e9e75"/>
+    <text x="398" y="164" fill="#2d4e3b" font-size="14">[Module A]</text><text x="398" y="188" fill="#7b857e" font-size="10">[Core operation]</text>
+    <path d="M538 175h46" stroke="#769484" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <rect x="601" y="125" width="202" height="102" rx="6" fill="#f7f8f5" stroke="#c2d1bf"/>
+    <path d="m628 150 15 8-15 8-15-8z" fill="#d8e5ce" stroke="#91ad88"/><path d="m613 166 15 8 15-8m-30 8 15 8 15-8" stroke="#91ad88" stroke-width="1.5"/>
+    <text x="659" y="164" fill="#2d4e3b" font-size="14">[Module B]</text><text x="659" y="188" fill="#7b857e" font-size="10">[Core operation]</text>
+    <path d="M820 175h88" stroke="#769484" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <rect x="925" y="112" width="146" height="127" rx="7" fill="#dce8d5" stroke="#a9bea0"/>
+    <path d="m938 211 35-49 27 25 25-39 32 63z" fill="#6e916c"/><path d="m973 162 27 25 25-39 32 63h-31z" fill="#507953"/><circle cx="1038" cy="138" r="11" fill="#f2e8bb"/>
+    <text x="998" y="267" fill="#57645e" text-anchor="middle" font-size="12">Restored output</text>
+    <text x="998" y="289" fill="#8a9389" text-anchor="middle" font-size="10">x̂</text>
+    <text x="560" y="307" fill="#8a9389" text-anchor="middle" font-size="10">Replace these blocks with your method’s actual modules and connections.</text>
+  </g>
+</svg>
