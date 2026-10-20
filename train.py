@@ -1,3 +1,5 @@
+
+
 import argparse
 import subprocess
 from tqdm import tqdm
@@ -9,7 +11,9 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 # from test import test_Denoise
 from utils.dataset_utils import PromptTrainDataset, DenoiseTestDataset, DerainDehazeDataset
-from net.model import PromptIR
+from net.model import Restormer_orgin
+# from net.model_zd_zc import Restormer
+from net.PromptIR import PromptIR
 from net.model import Restormer
 from utils.schedulers import LinearWarmupCosineAnnealingLR
 import numpy as np
@@ -17,7 +21,8 @@ import wandb
 import os
 os.environ["http_proxy"] = "http://127.0.0.1:7890/"
 os.environ["https_proxy"] = "http://127.0.0.1:7890/"
-wandb.login(key='403a08bb112279b0df3eeaf16e08e02f8e5fc634')
+# wandb.login(key='403a08bb112279b0df3eeaf16e08e02f8e5fc634')
+# os.environ["WANDB_MODE"] = "offline"
 from options import options as opt
 import lightning.pytorch as pl
 from lightning.pytorch.loggers import WandbLogger,TensorBoardLogger
@@ -25,7 +30,8 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.callbacks import Callback
 from utils.val_utils import AverageMeter, compute_psnr_ssim
 import sys
-
+from pytorch_lightning.utilities.rank_zero import rank_zero_only
+# torch.set_float32_matmul_precision('medium')
 
 def test_Denoise(net, dataset, sigma=15):
 
@@ -40,7 +46,7 @@ def test_Denoise(net, dataset, sigma=15):
         for ([clean_name], degrad_patch, clean_patch) in tqdm(testloader):
             degrad_patch, clean_patch = degrad_patch.cuda(), clean_patch.cuda()
 
-            restored = net(degrad_patch)
+            restored,_ = net(degrad_patch)
             temp_psnr, temp_ssim, N = compute_psnr_ssim(restored, clean_patch)
 
             psnr.update(temp_psnr, N)
@@ -61,69 +67,199 @@ def test_Derain_Dehaze(net, dataset, task="derain"):
         for ([degraded_name], degrad_patch, clean_patch) in tqdm(testloader):
             degrad_patch, clean_patch = degrad_patch.cuda(), clean_patch.cuda()
 
-            restored = net(degrad_patch)
+            restored,_ = net(degrad_patch)
             temp_psnr, temp_ssim, N = compute_psnr_ssim(restored, clean_patch)
             psnr.update(temp_psnr, N)
             ssim.update(temp_ssim, N)
         print(f"{task}:PSNR: %.2f, SSIM: %.4f" % (psnr.avg, ssim.avg))
         return psnr.avg,ssim.avg
 
+# def test_Denoise(model, dataset, sigma=15):
+#     # output_path = testopt.output_path + 'denoise/' + str(sigma) + '/'
+#     # subprocess.check_output(['mkdir', '-p', output_path])
+#     #
+#
+#     dataset.set_sigma(sigma)
+#     testloader = DataLoader(dataset, batch_size=1, pin_memory=True, shuffle=False, num_workers=0)
+#
+#     psnr = AverageMeter()
+#     ssim = AverageMeter()
+#
+#     with torch.no_grad():
+#         for ([clean_name], degrad_patch, clean_patch) in tqdm(testloader):
+#             input_, clean_patch = degrad_patch.cuda(), clean_patch.cuda()
+#             height, width = input_.shape[2], input_.shape[3]
+#             img_multiple_of = 8
+#             H, W = ((height + img_multiple_of) // img_multiple_of) * img_multiple_of, (
+#                         (width + img_multiple_of) // img_multiple_of) * img_multiple_of
+#             padh = H - height if height % img_multiple_of != 0 else 0
+#             padw = W - width if width % img_multiple_of != 0 else 0
+#             input_ = F.pad(input_, (0, padw, 0, padh), 'reflect')
+#
+#             # restored, _ = net(degrad_patch)
+#
+#             # test the image tile by tile
+#             b, c, h, w = input_.shape
+#             tile = min(128, h, w)
+#             assert tile % 8 == 0, "tile size should be multiple of 8"
+#             tile_overlap = 32
+#
+#             stride = tile - tile_overlap
+#             h_idx_list = list(range(0, h-tile, stride)) + [h-tile]
+#             w_idx_list = list(range(0, w-tile, stride)) + [w-tile]
+#             E = torch.zeros(b, c, h, w).type_as(input_)
+#             W = torch.zeros_like(E)
+#
+#             for h_idx in h_idx_list:
+#                 for w_idx in w_idx_list:
+#                     in_patch = input_[..., h_idx:h_idx+tile, w_idx:w_idx+tile]
+#                     out_patch, _ = model(in_patch)
+#                     out_patch_mask = torch.ones_like(out_patch)
+#
+#                     E[..., h_idx:(h_idx+tile), w_idx:(w_idx+tile)].add_(out_patch)
+#                     W[..., h_idx:(h_idx+tile), w_idx:(w_idx+tile)].add_(out_patch_mask)
+#             restored = E.div_(W)
+#
+#             restored = torch.clamp(restored, 0, 1)
+#
+#             # Unpad the output
+#             restored = restored[:, :, :height, :width]
+#
+#
+#             temp_psnr, temp_ssim, N = compute_psnr_ssim(restored, clean_patch)
+#
+#             psnr.update(temp_psnr, N)
+#             ssim.update(temp_ssim, N)
+#             # save_image_tensor(restored, output_path + clean_name[0] + '.png')
+#
+#         print("Denoise sigma=%d: psnr: %.2f, ssim: %.4f" % (sigma, psnr.avg, ssim.avg))
+#         return psnr.avg, ssim.avg
+#
+#
+# def test_Derain_Dehaze(model, dataset, task="derain"):
+#     # output_path = testopt.output_path + task + '/'
+#     # subprocess.check_output(['mkdir', '-p', output_path])
+#     #
+#     dataset.set_dataset(task)
+#     testloader = DataLoader(dataset, batch_size=1, pin_memory=True, shuffle=False, num_workers=0)
+#
+#     psnr = AverageMeter()
+#     ssim = AverageMeter()
+#
+#     with torch.no_grad():
+#         for ([degraded_name], degrad_patch, clean_patch) in tqdm(testloader):
+#             input_, clean_patch = degrad_patch.cuda(), clean_patch.cuda()
+#
+#
+#             height, width = input_.shape[2], input_.shape[3]
+#             img_multiple_of = 8
+#             H, W = ((height + img_multiple_of) // img_multiple_of) * img_multiple_of, (
+#                         (width + img_multiple_of) // img_multiple_of) * img_multiple_of
+#             padh = H - height if height % img_multiple_of != 0 else 0
+#             padw = W - width if width % img_multiple_of != 0 else 0
+#             input_ = F.pad(input_, (0, padw, 0, padh), 'reflect')
+#
+#
+#             # test the image tile by tile
+#             b, c, h, w = input_.shape
+#             tile = min(128, h, w)
+#             assert tile % 8 == 0, "tile size should be multiple of 8"
+#             tile_overlap = 32
+#
+#             stride = tile - tile_overlap
+#             h_idx_list = list(range(0, h-tile, stride)) + [h-tile]
+#             w_idx_list = list(range(0, w-tile, stride)) + [w-tile]
+#             E = torch.zeros(b, c, h, w).type_as(input_)
+#             W = torch.zeros_like(E)
+#
+#             for h_idx in h_idx_list:
+#                 for w_idx in w_idx_list:
+#                     in_patch = input_[..., h_idx:h_idx+tile, w_idx:w_idx+tile]
+#                     out_patch, _ = model(in_patch)
+#                     out_patch_mask = torch.ones_like(out_patch)
+#
+#                     E[..., h_idx:(h_idx+tile), w_idx:(w_idx+tile)].add_(out_patch)
+#                     W[..., h_idx:(h_idx+tile), w_idx:(w_idx+tile)].add_(out_patch_mask)
+#             restored = E.div_(W)
+#
+#             restored = torch.clamp(restored, 0, 1)
+#
+#             # Unpad the output
+#             restored = restored[:, :, :height, :width]
+#
+#
+#             temp_psnr, temp_ssim, N = compute_psnr_ssim(restored, clean_patch)
+#             psnr.update(temp_psnr, N)
+#             ssim.update(temp_ssim, N)
+#             #
+#             # save_image_tensor(restored, output_path + degraded_name[0] + '.png')
+#         print("PSNR: %.2f, SSIM: %.4f" % (psnr.avg, ssim.avg))
+#         return psnr.avg, ssim.avg
+
+
+
 
 class ManualEvalCallback(Callback):
-    def __init__(self, testopt):
+    def __init__(self, testopt, result_txt):
         super().__init__()
         self.testopt = testopt
         self.denoise_testset = DenoiseTestDataset(testopt)
         self.derain_set = DerainDehazeDataset(testopt,addnoise=False,sigma=15)
+        self.result_txt = result_txt
+
     def on_train_epoch_end(self, trainer, pl_module):
-        if trainer.current_epoch % 5 != 0:
-            return  # 只在每5个epoch执行一次测试和权重保存
+        if trainer.current_epoch < 100:
+            if trainer.current_epoch % 5 != 0:
+                return  # 只在每5个epoch执行一次测试和权重保存
 
-
+        if trainer.global_rank != 0:
+            return  # 仅在主进程执行一次
         print(f"[Epoch {trainer.current_epoch}] Running manual test...")
         pl_module.eval()
         avg_psnr,avg_ssim = 0,0
         with torch.no_grad():
             psnr,ssim = test_Denoise(pl_module, self.denoise_testset, sigma=15)
-            wandb.log({f"Denoise_PSNR_sigma{15}": psnr,
-                       f"Denoise_SSIM_sigma{15}": ssim,
-                         })
+            # wandb.log({f"Denoise_PSNR_sigma{15}": psnr,
+            #            f"Denoise_SSIM_sigma{15}": ssim,
+            #              })
             avg_psnr += psnr
             avg_ssim += ssim
 
             psnr,ssim = test_Denoise(pl_module, self.denoise_testset, sigma=25)
-            wandb.log({f"Denoise_PSNR_sigma{25}": psnr,
-                       f"Denoise_SSIM_sigma{25}": ssim,
-                       })
+            # wandb.log({f"Denoise_PSNR_sigma{25}": psnr,
+            #            f"Denoise_SSIM_sigma{25}": ssim,
+            #            })
             avg_psnr += psnr
             avg_ssim += ssim
 
             psnr,ssim = test_Denoise(pl_module, self.denoise_testset, sigma=50)
-            wandb.log({f"Denoise_PSNR_sigma{50}": psnr,
-                       f"Denoise_SSIM_sigma{50}": ssim,
-                       })
+            # wandb.log({f"Denoise_PSNR_sigma{50}": psnr,
+            #            f"Denoise_SSIM_sigma{50}": ssim,
+            #            })
             avg_psnr += psnr
             avg_ssim += ssim
 
 
             psnr,ssim = test_Derain_Dehaze(pl_module, self.derain_set, task="derain")
-            wandb.log({f"Derain_PSNR": psnr,
-                       f"Derain_SSIM": ssim,
-                       })
+            # wandb.log({f"Derain_PSNR": psnr,
+            #            f"Derain_SSIM": ssim,
+            #            })
             avg_psnr += psnr
             avg_ssim += ssim
 
             psnr,ssim = test_Derain_Dehaze(pl_module, self.derain_set, task="dehaze")
-            wandb.log({f"Dehaze_PSNR": psnr,
-                       f"Dehaze_SSIM": ssim,
-                       })
+            # wandb.log({f"Dehaze_PSNR": psnr,
+            #            f"Dehaze_SSIM": ssim,
+            #            })
             avg_psnr += psnr
             avg_ssim += ssim
         print(f"{trainer.current_epoch}:avg_psnr:{avg_psnr/5},avg_ssim:{avg_ssim/5}")
-        wandb.log({f"avg_psnr":avg_psnr/5,
-                  f"avg_ssim":avg_ssim/5,
-                  })
-
+        # wandb.log({f"avg_psnr":avg_psnr/5,
+        #           f"avg_ssim":avg_ssim/5,
+        #           })
+        with open(self.result_txt,'a') as f:
+            # 按格式写入 epoch、avg_psnr、avg_ssim，用制表符或逗号分隔
+            f.write(f"{trainer.current_epoch}\t{avg_psnr / 5:.4f}\t{avg_ssim / 5:.4f}\n")
         pl_module.train()
 
 
@@ -132,7 +268,7 @@ class PromptIRModel(pl.LightningModule):
         super().__init__()
         self.net = PromptIR(decoder=True)
         self.loss_fn  = nn.L1Loss()
-    
+
     def forward(self,x):
         return self.net(x)
     
@@ -145,6 +281,8 @@ class PromptIRModel(pl.LightningModule):
         loss = self.loss_fn(restored,clean_patch)
         # Logging to TensorBoard (if installed) by default
         self.log("train_loss", loss)
+
+
         return loss
 
     # def validation_step(self, batch, batch_idx):
@@ -176,8 +314,9 @@ class PromptIRModel(pl.LightningModule):
 class RestormerModel(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.net = Restormer()
+        self.net = PromptIR()
         self.loss_fn = nn.L1Loss()
+        # self.criterion = nn.CrossEntropyLoss()
         # 冻结编码层
         # self.freeze_encoder_layer()
     def forward(self, x):
@@ -188,14 +327,18 @@ class RestormerModel(pl.LightningModule):
         # training_step defines the train loop.
         # it is independent of forward
         ([clean_name, de_id], degrad_patch, clean_patch) = batch
-        restored = self.net(degrad_patch)
-
+        restored, _ = self.net(degrad_patch)
+        # label = de_id
         restor_loss = self.loss_fn(restored, clean_patch)
+        # cls_loss = self.criterion(cls,label)
         loss = restor_loss
+
 
 
         # Logging to TensorBoard (if installed) by default
         self.log("train_loss", loss)
+        # self.log("restor_loss", restor_loss)
+        # self.log("cls_loss", cls_loss)
 
         return loss
 
@@ -216,43 +359,50 @@ class RestormerModel(pl.LightningModule):
         feat = torch.mean(latent, dim=[2, 3])  # global average pooling
         return feat
 
-    def freeze_encoder_layer(self):
-        # 冻结所有相关层的参数
-        for param in self.net.patch_embed.parameters():
-            param.requires_grad = False
-        for param in self.net.encoder_level1.parameters():
-            param.requires_grad = False
-        for param in self.net.encoder_level2.parameters():
-            param.requires_grad = False
-        for param in self.net.encoder_level3.parameters():
-            param.requires_grad = False
-        for param in self.net.latent.parameters():
-            param.requires_grad = False
+
 
 
 def main():
     print("Options")
     print(opt)
-    if opt.wblogger is not None:
-        logger  = WandbLogger(project=opt.wblogger,name="Restormer-Train")
-    else:
-        logger = TensorBoardLogger(save_dir = "logs/")
-
+    # if opt.wblogger is not None:
+    #     logger  = WandbLogger(project=opt.wblogger,name="Restormer-gumbel1+maxpool+3pgm")
+    # else:
+    #     logger = TensorBoardLogger(save_dir = "logs/")
+    
     trainset = PromptTrainDataset(opt)
     checkpoint_callback = ModelCheckpoint(dirpath = opt.ckpt_dir,every_n_epochs = 1,save_top_k=-1)
     trainloader = DataLoader(trainset, batch_size=opt.batch_size, pin_memory=True, shuffle=True,
                              drop_last=True, num_workers=opt.num_workers)
+    if not os.path.exists(opt.ckpt_dir):
+        os.makedirs(opt.ckpt_dir)
+    result_txt = os.path.join(opt.ckpt_dir,'results.txt')
+    with open(result_txt,'w') as file:
+        file.write(f'epoch\tavg_psnr\tavg_ssim\n')
 
-    pre_train_path = 'train_ckpt/restormer***/epoch=119-step=515760.ckpt'
-    model = RestormerModel().load_from_checkpoint(pre_train_path,strict=False)
+    # ckpt_path = '/media/hy/hhh/all-in-one-image-restoration/PromptIR-main/train_ckpt/3D/Restormer-max_zdzc_AdamW10/epoch=115-32.6635_0.9176.ckpt'
+    # 加载 Restormer 权重
+    ckpt_path = "/media/hy/hhh/all-in-one-image-restoration/PromptIR-main/Pretrain/3D/PromptIR/checkpoint_epoch_V1_0010_loss0.0002.pth.tar"  # 你的 Restormer 预训练权重路径
+    state_dict = torch.load(ckpt_path, map_location="cpu")
+    state_dict = state_dict['state_dict']
+
+    model = RestormerModel().cuda()
+    # 只加载 net 部分
+    model.net.load_state_dict(state_dict, strict=True)
+    # model.net.prompt3.prompt_param.requires_grad = False
+
+    # 微调
+    # model = RestormerModel().load_from_checkpoint(ckpt_path).cuda()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--denoise_path', type=str, default='/media/rqy/hhh/all-in-one-image-restoration/dataset/denoising/CBSD68/')
-    parser.add_argument('--derain_path', type=str, default='/media/rqy/hhh/all-in-one-image-restoration/dataset/deraining/Rain100L/')
-    parser.add_argument('--dehaze_path', type=str, default='/media/rqy/hhh/all-in-one-image-restoration/dataset/dehazing/SOTS/outdoor/')
+    parser.add_argument('--denoise_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/denoising/CBSD68/')
+    parser.add_argument('--derain_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/deraining/Rain100L/')
+    parser.add_argument('--dehaze_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/dehazing/SOTS/outdoor/')
     testopt = parser.parse_args()
 
-    trainer = pl.Trainer( max_epochs=opt.epochs,accelerator="gpu",devices=opt.num_gpus,strategy="ddp_find_unused_parameters_true",logger=logger,callbacks=[checkpoint_callback,ManualEvalCallback(testopt)])
+
+
+    trainer = pl.Trainer( max_epochs=opt.epochs,accelerator="gpu",devices=opt.num_gpus,strategy="ddp_find_unused_parameters_true",callbacks=[checkpoint_callback,ManualEvalCallback(testopt,result_txt)]) # strategy="ddp"
     trainer.fit(model=model, train_dataloaders=trainloader)
 
 

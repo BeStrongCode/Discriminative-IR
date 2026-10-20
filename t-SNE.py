@@ -15,13 +15,22 @@ transform = transforms.Compose([
     # transforms.Normalize(mean=[0.485, 0.456, 0.406],  # ImageNet 均值
     #                      std=[0.229, 0.224, 0.225])  # ImageNet 方差
 ])
-ckpt_path = 'train_ckpt/restormer**/epoch=119-step=389760.ckpt'
+ckpt_path = 'Pretrain/3D/restormer_maxpgm3_gumbel_AdamW/checkpoint_epoch_V1_0010_loss0.0003.pth.tar'
 # 加载图像文件夹
 dataset_path = "images"  # 修改为你图片根目录路径
 dataset = datasets.ImageFolder(root=dataset_path, transform=transform)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=False)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = RestormerModel().load_from_checkpoint(ckpt_path).cuda()
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+
+state_dict = torch.load(ckpt_path, map_location="cpu")
+state_dict = state_dict['state_dict']
+
+model = RestormerModel().to(device)
+# 只加载 net 部分
+# model.net.load_state_dict(state_dict, strict=True)
+
+# model = PromptIRModel().load_from_checkpoint(ckpt_path,strict=True).to(device)
+# model = RestormerModel().to(device)
 
 model.eval()
 features = []
@@ -33,7 +42,7 @@ with torch.no_grad():
         feats = model.extract_encoder_features(images)  # shape: [B, 512]
         features.append(feats.cpu().numpy())
         labels.extend(lbls.numpy())
-save_path = 't-SNE/de_t-SNE_restormer**.png'
+save_path = 't-SNE/Dis_Random_3D_latent.png'
 features = np.concatenate(features, axis=0)
 labels = np.array(labels)
 tsne = TSNE(n_components=2, perplexity=30, learning_rate=200, n_iter=1000, random_state=42)

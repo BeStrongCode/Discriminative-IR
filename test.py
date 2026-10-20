@@ -7,12 +7,13 @@ import torch
 from torch.utils.data import DataLoader
 import os
 import torch.nn as nn
-
+from utils.dataset_utils import RealwolrdDataset
 from train import RestormerModel
+from train_5D import test_Deblur, test_Lowlight
 from utils.dataset_utils import DenoiseTestDataset, DerainDehazeDataset
 from utils.val_utils import AverageMeter, compute_psnr_ssim
 from utils.image_io import save_image_tensor
-from net.model import PromptIR
+from net.PromptIR import PromptIR
 
 import lightning.pytorch as pl
 import torch.nn.functional as F
@@ -50,9 +51,10 @@ class PromptIRModel(pl.LightningModule):
 
 
 def test_Denoise(net, dataset, sigma=15):
-    # output_path = testopt.output_path + 'denoise/' + str(sigma) + '/'
+    output_path = os.path.join(testopt.output_path, 'denoise' + str(sigma))
+    os.makedirs(output_path,exist_ok=True)
     # subprocess.check_output(['mkdir', '-p', output_path])
-    #
+    # #
 
     dataset.set_sigma(sigma)
     testloader = DataLoader(dataset, batch_size=1, pin_memory=True, shuffle=False, num_workers=0)
@@ -64,12 +66,12 @@ def test_Denoise(net, dataset, sigma=15):
         for ([clean_name], degrad_patch, clean_patch) in tqdm(testloader):
             degrad_patch, clean_patch = degrad_patch.cuda(), clean_patch.cuda()
 
-            restored = net(degrad_patch)
+            restored,_ = net(degrad_patch)
             temp_psnr, temp_ssim, N = compute_psnr_ssim(restored, clean_patch)
 
             psnr.update(temp_psnr, N)
             ssim.update(temp_ssim, N)
-            # save_image_tensor(restored, output_path + clean_name[0] + '.png')
+            save_image_tensor(restored, os.path.join(output_path, clean_name[0] + f'_{temp_psnr:.2f}_{temp_ssim:.2f}.png'))
 
         print("Denoise sigma=%d: psnr: %.2f, ssim: %.4f" % (sigma, psnr.avg, ssim.avg))
         return psnr.avg, ssim.avg
@@ -77,25 +79,24 @@ def test_Denoise(net, dataset, sigma=15):
 
 
 def test_Derain_Dehaze(net, dataset, task="derain"):
-    # output_path = testopt.output_path + task + '/'
-    # subprocess.check_output(['mkdir', '-p', output_path])
+    output_path = os.path.join(testopt.output_path, task)
+    os.makedirs(output_path,exist_ok=True)
     #
     dataset.set_dataset(task)
     testloader = DataLoader(dataset, batch_size=1, pin_memory=True, shuffle=False, num_workers=0)
 
     psnr = AverageMeter()
     ssim = AverageMeter()
-
     with torch.no_grad():
         for ([degraded_name], degrad_patch, clean_patch) in tqdm(testloader):
             degrad_patch, clean_patch = degrad_patch.cuda(), clean_patch.cuda()
 
-            restored = net(degrad_patch)
+            restored,_ = net(degrad_patch)
             temp_psnr, temp_ssim, N = compute_psnr_ssim(restored, clean_patch)
             psnr.update(temp_psnr, N)
             ssim.update(temp_ssim, N)
-            #
-            # save_image_tensor(restored, output_path + degraded_name[0] + '.png')
+            newname = os.path.join(output_path, degraded_name[0] + f'_{temp_psnr:.2f}_{temp_ssim:.2f}.png')
+            save_image_tensor(restored, newname)
         print("PSNR: %.2f, SSIM: %.4f" % (psnr.avg, ssim.avg))
         return psnr.avg, ssim.avg
 
@@ -103,14 +104,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Input Parameters
     parser.add_argument('--cuda', type=int, default=0)
-    parser.add_argument('--mode', type=int, default=3,
-                        help='0 for denoise, 1 for derain, 2 for dehaze, 3 for all-in-one')
-
-    parser.add_argument('--denoise_path', type=str, default="/media/rqy/hhh/all-in-one-image-restoration/dataset/denoising/", help='save path of test noisy images')
-    parser.add_argument('--derain_path', type=str, default="/media/rqy/hhh/all-in-one-image-restoration/dataset/deraining/", help='save path of test raining images')
-    parser.add_argument('--dehaze_path', type=str, default="/media/rqy/hhh/all-in-one-image-restoration/dataset/dehazing/SOTS/outdoor/", help='save path of test hazy images')
-    parser.add_argument('--output_path', type=str, default="output/", help='output save path')
-    parser.add_argument('--ckpt_name', type=str, default="ckpt/model.ckpt", help='checkpoint save path')
+    parser.add_argument('--mode', type=int, default=5,
+                        help='0 for denoise, 1 for derain, 2 for dehaze, 3 for all-in-one, 4 for 5D, 5 for realworld, 6 for unseen')
+    parser.add_argument('--rd_dehaze_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/WeatherBench/haze/test/", help='save path of test haze images')
+    parser.add_argument('--rd_desnow_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/WeatherBench/snow/test/", help='save path of test snow images')
+    parser.add_argument('--rd_derain_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/WeatherBench/rain/test/", help='save path of test rain images')
+    
+    parser.add_argument('--unseen_path', type=str, default="/media/hy/Elements/bw/AllInOne/datasets/Snow/CSD/Test/Snow", help='save path of unseen path')
+    
+    parser.add_argument('--denoise_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/denoising/", help='save path of test noisy images')
+    parser.add_argument('--derain_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/deraining/", help='save path of test raining images')
+    parser.add_argument('--dehaze_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/dehazing/SOTS/outdoor/", help='save path of test hazy images')
+    parser.add_argument('--deblur_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/deblurring/GOPRO_Large/test1/')
+    parser.add_argument('--lowlight_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/low-light/LOLdataset/test/')
+    parser.add_argument('--output_path', type=str, default="output/Real_world/Dis-IR", help='output save path')
+    parser.add_argument('--ckpt_name', type=str, default="train_ckpt/3D/Restormer-max_pgm_gumbel_AdamW_epoch10_finetune192_2e4/epoch=3-32.82.ckpt", help='checkpoint save path')
     testopt = parser.parse_args()
     
     
@@ -122,7 +130,7 @@ if __name__ == '__main__':
 
     ckpt_path =  testopt.ckpt_name
 
-
+    
     
     denoise_splits = ["CBSD68/"]
     derain_splits = ["Rain100L/"]
@@ -137,10 +145,11 @@ if __name__ == '__main__':
         denoise_tests.append(denoise_testset)
 
 
+
     print("CKPT name : {}".format(ckpt_path))
 
     # net  = PromptIRModel().load_from_checkpoint(ckpt_path).cuda()
-    net  = PromptIRModel().load_from_checkpoint(ckpt_path).cuda()
+    net  = RestormerModel().load_from_checkpoint(ckpt_path).cuda()
     net.eval()
     total_psnr = 0
     total_ssim = 0
@@ -155,6 +164,9 @@ if __name__ == '__main__':
 
                 print('Start {} testing Sigma=50...'.format(name))
                 test_Denoise(net, testset, sigma=50)
+
+                print('Start {} testing Sigma=100...'.format(name))
+                test_Denoise(net, testset, sigma=100)
         elif testopt.mode == 1:
             print('Start testing rain streak removal...')
             derain_base_path = testopt.derain_path
@@ -206,3 +218,75 @@ if __name__ == '__main__':
             total_ssim += ssim
 
             print(f'avg_psnr:{total_psnr/5}, avg_ssim:{total_ssim/5}')
+        elif testopt.mode == 4:
+
+            for testset,name in zip(denoise_tests,denoise_splits) :
+                # print('Start {} testing Sigma=15...'.format(name))
+                # psnr, ssim = test_Denoise(net, testset, sigma=15)
+                # total_psnr += psnr
+                # total_ssim += ssim
+
+                print('Start {} testing Sigma=25...'.format(name))
+                psnr, ssim = test_Denoise(net, testset, sigma=25)
+                total_psnr += psnr
+                total_ssim += ssim
+
+                # print('Start {} testing Sigma=50...'.format(name))
+                # psnr, ssim = test_Denoise(net, testset, sigma=50)
+                # total_psnr += psnr
+                # total_ssim += ssim
+
+
+            derain_base_path = testopt.derain_path
+            print(derain_splits)
+
+            for name in derain_splits:
+
+                print('Start testing {} rain streak removal...'.format(name))
+                testopt.derain_path = os.path.join(derain_base_path,name)
+                derain_set = DerainDehazeDataset(testopt,addnoise=False,sigma=15)
+                psnr, ssim = test_Derain_Dehaze(net, derain_set, task="derain")
+                total_psnr += psnr
+                total_ssim += ssim
+
+
+
+            print('Start testing SOTS...')
+            psnr, ssim = test_Derain_Dehaze(net, derain_set, task="dehaze")
+            total_psnr += psnr
+            total_ssim += ssim
+
+
+            print('Start testing Gopro...')
+            psnr,ssim = test_Derain_Dehaze(net, derain_set, task="deblur")
+            total_psnr += psnr
+            total_ssim += ssim
+
+            print('Start testing LOL...')
+            psnr,ssim = test_Derain_Dehaze(net, derain_set, task="lowlight")
+            total_psnr += psnr
+            total_ssim += ssim
+
+        elif testopt.mode == 5:
+
+            print('Start testing realworld derain...')
+            derain_set = RealwolrdDataset(testopt,addnoise=False,sigma=15)
+            psnr, ssim = test_Derain_Dehaze(net, derain_set, task="derain")
+            total_psnr += psnr
+            total_ssim += ssim
+
+            print('Start testing realworld desnow...')
+            derain_set = RealwolrdDataset(testopt,addnoise=False,sigma=15)
+            psnr, ssim = test_Derain_Dehaze(net, derain_set, task="desnow")
+            total_psnr += psnr
+            total_ssim += ssim
+
+            print('Start testing realworld dehaze...')
+            derain_set = RealwolrdDataset(testopt,addnoise=False,sigma=15)
+            psnr, ssim = test_Derain_Dehaze(net, derain_set, task="dehaze")       
+            total_psnr += psnr
+            total_ssim += ssim
+
+            print(f'avg_psnr:{total_psnr/3}, avg_ssim:{total_ssim/3}')
+
+

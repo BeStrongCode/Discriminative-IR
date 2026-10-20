@@ -26,6 +26,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -164,6 +165,14 @@ wandb
 test
 ckpt
 output
-
+vis_results/
 images
 clear_images
+lightning_logs
+residual_vis
+Pretrain
+t-SNE
+PromptIR.ckpt
+3D-compare.zip
+5D-images/
+3D

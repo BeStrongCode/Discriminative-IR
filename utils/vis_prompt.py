@@ -10,7 +10,7 @@ import os
 
 from tqdm import tqdm
 
-from train import PromptIRModel
+from train import PromptIRModel, RestormerModel
 from utils.image_utils import crop_img
 
 
@@ -28,8 +28,8 @@ def byone():
     newimg_path = os.path.join(save_path,image_path.split('/')[-1])
 
 
-    ckpt_path = '../ckpt/model.ckpt'
-    model = PromptIRModel().load_from_checkpoint(ckpt_path).cuda()
+    ckpt_path = '../train_ckpt/restormer_pgm/avg_psnr32.30_avg_ssim_0.915.ckpt'
+    model = RestormerModel().load_from_checkpoint(ckpt_path).cuda()
     model.eval()
     with torch.no_grad():
 
@@ -100,11 +100,47 @@ def plotweights(weights,save_path):
     # plt.show()
 
 
+def visualize_fftprompt(vectors_list, save_path):
+    """
+    可视化 list 中多个 (1,768) 向量的前 20 维，并保存图像
+    :param vec_list: list，每个元素是 torch.Tensor 或 numpy.ndarray，形状 (1,768)
+    :param save_path: 保存图片路径（包含文件名，如 "./result/vec_plot.png"）
+    """
+    plt.figure(figsize=(10, 6))
+
+    for i, vec in enumerate(vectors_list):
+        # 转成 numpy 并取前 20 维
+        if isinstance(vec, torch.Tensor):
+            vec = vec.detach().cpu().numpy()
+        vec_20 = vec[0, :768]  # 取前20维
+
+        plt.plot(range(1, 769), vec_20, marker='o', label=f'Vector {i+1}')
+
+    plt.xlabel("Dimension")
+    plt.ylabel("Value")
+    plt.title("First 20 Dimensions of (1,768) Vectors")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+
+
 def byfolder():
-    type = 'rainy'
+    type = 'noise'
     img_folder = os.path.join('../images',type)
-    ckpt_path = '../ckpt/model.ckpt'
-    model = PromptIRModel().load_from_checkpoint(ckpt_path).cuda()
+    ckpt_path = '../Pretrain/3D/max_chnnelpgm_AdamW/checkpoint_epoch_V1_0005_loss0.0008.pth.tar'
+    ckpt = torch.load(ckpt_path, map_location="cpu")
+    state_dict = ckpt['state_dict']
+
+    # model = RestormerModel().load_from_checkpoint(ckpt_path).cuda()
+
+    model = RestormerModel().cuda()
+    model.net.load_state_dict(state_dict)
+
+
     model.eval()
     weight1,weight2,weight3 = [],[],[]
     with torch.no_grad():
@@ -117,12 +153,14 @@ def byfolder():
                 img = img.permute(2,0,1).unsqueeze(0)
                 _, weights = model(img)
                 weights = np.array(weights.cpu())
-                weight1.append(weights[0])
-                weight2.append(weights[1])
-                weight3.append(weights[2])
+                weight1.append(weights)
+                # weight2.append(weights[1])
+                # weight3.append(weights[2])
 
-    plotweights(weight1,'weight1.png')
-    plotweights(weight2,'weight2.png')
-    plotweights(weight3,'weight3.png')
+    plotweights(weight1,f'class_channelpgm_AdamW_{type}_weight1.png')
+
+    # visualize_fftprompt(weight1,f'{type}1_weight1.png')
+    # plotweights(weight2,'weight2.png')
+    # plotweights(weight3,'weight3.png')
 
 byfolder()
