@@ -22,6 +22,6 @@ conda activate disir
 
 ## 🧪 Test 
 ```bash
-python test.py
 conda activate disir
+python test.py
 ```
