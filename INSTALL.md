@@ -7,8 +7,8 @@ Follow these intructions
 
 1. Clone our repository
 ```
-git clone https://github.com/va1shn9v/PromptIR.git
-cd PromptIR
+git clone https://github.com/BeStrongCode/Discriminative-IR.git
+cd Discriminative-IR
 ```
 
 2. Create conda environment

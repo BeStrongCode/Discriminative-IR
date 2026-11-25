@@ -14,13 +14,14 @@
 
 ```bash
 conda env create -f env.yml
-conda activate promptir
+conda activate disir
 ```
 
 ## 📦 Pretrained Weights
 
-<!-- [Download pretrained weights]() -->
 
-## 🧪 Test Tutorial
-
-<!-- Add the test instructions here. -->
+## 🧪 Test 
+```bash
+python test.py
+conda activate disir
+```

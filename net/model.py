@@ -228,43 +228,6 @@ class OverlapPatchEmbed(nn.Module):
 
 
 ##########################################################################
-##----------ChannelAttention Prompt Gen Module -----------------------
-class ChannelAttn_PromptGenBlock(nn.Module):
-    def __init__(self,prompt_dim=128,prompt_len=5,prompt_size = 96,lin_dim = 192):
-        super(ChannelAttn_PromptGenBlock,self).__init__()
-        self.prompt_param = nn.Parameter(torch.rand(1,prompt_len,prompt_dim,prompt_size,prompt_size))
-        self.linear_layer = nn.Linear(lin_dim,prompt_len)
-        self.conv3x3 = nn.Conv2d(prompt_dim,prompt_dim,kernel_size=3,stride=1,padding=1,bias=False)
-        self.mlp = nn.Sequential(
-            nn.Linear(lin_dim, lin_dim*2),
-            nn.ReLU(),
-            nn.Linear(lin_dim*2, lin_dim)
-        )
-        # self.scale = nn.Parameter(torch.zeros(1,lin_dim*2))
-
-        # self.linear_layer1 = nn.Linear(lin_dim*2, lin_dim)
-
-
-    def forward(self,x):
-        B,C,H,W = x.shape
-        emb_max = x.amax(dim=(-2,-1))
-        emb_min = x.mean(dim=(-2,-1))
-        emb_max = self.mlp(emb_max)
-        emb_min = self.mlp(emb_min)
-        emb = emb_max + emb_min
-
-        # sigmoid gating
-        prompt_weights = F.sigmoid(self.linear_layer(emb))
-
-
-        prompt = prompt_weights.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1) * self.prompt_param.unsqueeze(0).repeat(B,1,1,1,1,1).squeeze(1)
-        prompt = torch.sum(prompt,dim=1)
-        prompt = F.interpolate(prompt,(H,W),mode="bilinear")
-        prompt = self.conv3x3(prompt)
-
-        return prompt,prompt_weights
-
-##########################################################################
 ##---------- Prompt Gen Module -----------------------
 class PromptGenBlock(nn.Module):
     def __init__(self,prompt_dim=128,prompt_len=5,prompt_size = 96,lin_dim = 192):
@@ -272,36 +235,10 @@ class PromptGenBlock(nn.Module):
         self.prompt_param = nn.Parameter(torch.rand(1,prompt_len,prompt_dim,prompt_size,prompt_size))
         self.linear_layer = nn.Linear(lin_dim,prompt_len)
         self.conv3x3 = nn.Conv2d(prompt_dim,prompt_dim,kernel_size=3,stride=1,padding=1,bias=False)
-        # self.mlp = nn.Sequential(
-        #     nn.Linear(lin_dim, lin_dim*2),
-        #     nn.ReLU(),
-        #     nn.Linear(lin_dim*2, lin_dim)
-        # )
-        # self.scale = nn.Parameter(torch.zeros(1,lin_dim*2))
-
-        # self.linear_layer1 = nn.Linear(lin_dim*2, lin_dim)
 
 
     def forward(self,x):
-        # B,C,H,W = x.shape
-        # emb_max = x.amax(dim=(-2,-1))
-        # # emb_min = x.mean(dim=(-2,-1))
-        # # emb_max = self.mlp(emb_max)
-        # # emb_min = self.mlp(emb_min)
-        # # emb = emb_max + emb_min
-        # # emb_min = x.mean(dim=(-2,-1))
-        # # emb = torch.cat([emb_max,emb_min],dim=-1)
-        #
-        # # 训练使用gumbel_softmax，而测试使用softmax
-        # prompt_weights = F.gumbel_softmax(self.linear_layer(emb_max),tau=1.5,hard=False,dim=1)
-        # # prompt_weights = F.softmax(self.linear_layer(emb_max),dim=1)
-        #
-        # prompt = prompt_weights.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1) * self.prompt_param.unsqueeze(0).repeat(B,1,1,1,1,1).squeeze(1)
-        # prompt = torch.sum(prompt,dim=1)
-        # prompt = F.interpolate(prompt,(H,W),mode="bilinear")
-        # prompt = self.conv3x3(prompt)
-        #
-        # return prompt,prompt_weights
+
         B,C,H,W = x.shape
         emb = x.mean(dim=(-2,-1))
         prompt_weights = F.softmax(self.linear_layer(emb),dim=1)
@@ -337,48 +274,6 @@ class Maxpool_gumbel_PromptGenBlock(nn.Module):
         prompt = self.conv3x3(prompt)
 
         return prompt,prompt_weights
-##########################################################################
-##---------- FFTPrompt Gen Module -----------------------
-class FFTPromptGenBlock(nn.Module):
-    def __init__(self,prompt_dim=128,prompt_len=5,prompt_size = 96,lin_dim = 192):
-        super(FFTPromptGenBlock,self).__init__()
-        self.prompt_param = nn.Parameter(torch.rand(1,lin_dim*2,prompt_size,prompt_size//2+1))
-        # self.linear_layer = nn.Linear(lin_dim*2,prompt_len)
-        self.mlp = nn.Sequential(
-            nn.Linear(lin_dim*2, lin_dim*4),
-            nn.ReLU(),
-            nn.Linear(lin_dim*4, lin_dim*2)
-        )
-
-        self.conv1x1 = nn.Conv2d(lin_dim*2,lin_dim,kernel_size=1)
-        self.outconv = nn.Conv2d(lin_dim,prompt_dim,kernel_size=1)
-
-    def forward(self,x):
-        B,C,H,W = x.shape
-        fft_x = torch.fft.rfft2(x,dim=(-2,-1))
-        fft_real = fft_x.real
-        fft_imag = fft_x.imag
-        fft_y = torch.cat([fft_real,fft_imag],dim=1)
-
-        emb_max = fft_y.amax(dim=(-2,-1)) #高频
-        emb_min = fft_y.mean(dim=(-2,-1)) #低频
-        emb = emb_max + emb_min
-
-        emb = self.mlp(emb)
-
-        prompt_weights = F.sigmoid(emb)
-        prompt_param = self.prompt_param.unsqueeze(0)
-        prompt_param = prompt_param.repeat(B,1,1,1,1)
-        prompt_param = prompt_param.squeeze(1)
-        prompt = prompt_weights.unsqueeze(-1).unsqueeze(-1) * self.prompt_param.unsqueeze(0).repeat(B,1,1,1,1).squeeze(1)
-        # prompt = torch.sum(prompt,dim=1)
-        # prompt = F.interpolate(prompt,(H,W),mode="bilinear")
-
-        prompt = self.conv1x1(prompt)
-        prompt = F.relu(prompt)
-        prompt = torch.fft.irfft2(prompt,s = x.shape[-2:], dim=(-2,-1))
-        prompt = self.outconv(prompt)
-        return prompt,prompt_weights
 
 
 
@@ -387,50 +282,6 @@ def _complex_dtype_from_float(dtype: torch.dtype):
 
 
 
-##########################################################################
-##---------- FFTPrompt Gen Module -----------------------
-class LearnFFTPromptGenBlock(nn.Module):
-    def __init__(self,prompt_dim=128,prompt_len=5,prompt_size = 96,lin_dim = 192, ratio=16):
-        super(LearnFFTPromptGenBlock,self).__init__()
-        self.prompt_param = nn.Parameter(torch.rand(1,lin_dim*2,prompt_size,prompt_size))
-        # self.linear_layer = nn.Linear(lin_dim*2,prompt_len)
-        self.mlp = nn.Sequential(
-            nn.Linear(lin_dim*2, lin_dim*2 // ratio),
-            nn.ReLU(),
-            nn.Linear(lin_dim*2 // ratio, lin_dim*2)
-        )
-        self.conv1x1 = nn.Conv2d(lin_dim*2,lin_dim,kernel_size=1)
-        self.outconv = nn.Conv2d(lin_dim, prompt_dim,kernel_size=1)
-        self.rfft2 = LearnableRFFT2(prompt_size,prompt_size).set_norm('backward')
-        self.irfft2 = LearnableIRFFT2(prompt_size, prompt_size).set_norm('backward')
-
-
-    def forward(self,x):
-        B,C,H,W = x.shape
-        fft_x = self.rfft2(x)
-        fft_real = fft_x.real
-        fft_imag = fft_x.imag
-        fft_y = torch.cat([fft_real,fft_imag],dim=1)
-
-        emb_max = fft_y.amax(dim=(-2,-1)) #高频
-        emb_min = fft_y.mean(dim=(-2,-1)) #低频
-
-
-        emb_max = self.mlp(emb_max)
-        emb_min = self.mlp(emb_min)
-        emb = emb_max + emb_min
-
-        prompt_weights = F.sigmoid(emb)
-
-        prompt = prompt_weights.unsqueeze(-1).unsqueeze(-1) * self.prompt_param.unsqueeze(0).repeat(B,1,1,1,1).squeeze(1)
-        # prompt = torch.sum(prompt,dim=1)
-        # prompt = F.interpolate(prompt,(H,W),mode="bilinear")
-
-        prompt = self.conv1x1(prompt)
-        prompt = F.relu(prompt)
-        prompt = self.irfft2(prompt)
-        prompt = self.outconv(prompt)
-        return prompt,prompt_weights
 
 ##########################################################################
 ##---------- PromptIR -----------------------
@@ -679,7 +530,7 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
 
 
 
-class DiscriminativeIR(nn.Module):
+class DisIR(nn.Module):
     def __init__(self,
                  inp_channels=3,
                  out_channels=3,
@@ -693,7 +544,7 @@ class DiscriminativeIR(nn.Module):
                  dual_pixel_task=False  ## True for dual-pixel defocus deblurring only. Also set inp_channels=6
                  ):
 
-        super(DiscriminativeIR, self).__init__()
+        super(DisIR, self).__init__()
 
         self.patch_embed = OverlapPatchEmbed(inp_channels, dim)
 
@@ -758,7 +609,7 @@ class DiscriminativeIR(nn.Module):
 
 
         # prompt3  class = prompt_len
-        self.prompt3 = Maxpool_gumbel_PromptGenBlock(prompt_dim=320, prompt_len=7, prompt_size=16, lin_dim=384)
+        self.prompt3 = Maxpool_gumbel_PromptGenBlock(prompt_dim=320, prompt_len=5, prompt_size=16, lin_dim=384)
         # self.prompt3 = ChannelAttn_PromptGenBlock(prompt_dim=320, prompt_len=5, prompt_size=16, lin_dim=384)
         # # self.fftprompt = LearnFFTPromptGenBlock(prompt_dim=320, prompt_len=5, prompt_size=16, lin_dim=384)
         # # # self.channel_prompt = channel_prompt(ch=384)
@@ -839,139 +690,6 @@ class DiscriminativeIR(nn.Module):
         # return out_dec_level1, latent, out_dec_level3, out_dec_level2, x4
         return out_dec_level1, latent
 
-
-class Restormer_orgin(nn.Module):
-    def __init__(self,
-                 inp_channels=3,
-                 out_channels=3,
-                 dim=48,
-                 num_blocks=[4, 6, 6, 8],
-                 num_refinement_blocks=4,
-                 heads=[1, 2, 4, 8],
-                 ffn_expansion_factor=2.66,
-                 bias=False,
-                 LayerNorm_type='WithBias',  ## Other option 'BiasFree'
-                 dual_pixel_task=False  ## True for dual-pixel defocus deblurring only. Also set inp_channels=6
-                 ):
-
-        super(Restormer_orgin, self).__init__()
-
-        self.patch_embed = OverlapPatchEmbed(inp_channels, dim)
-
-        self.encoder_level1 = nn.Sequential(*[
-            TransformerBlock(dim=dim, num_heads=heads[0], ffn_expansion_factor=ffn_expansion_factor, bias=bias,
-                             LayerNorm_type=LayerNorm_type) for i in range(num_blocks[0])])
-
-        self.down1_2 = Downsample(dim)  ## From Level 1 to Level 2
-        self.encoder_level2 = nn.Sequential(*[
-            TransformerBlock(dim=int(dim * 2 ** 1), num_heads=heads[1], ffn_expansion_factor=ffn_expansion_factor,
-                             bias=bias, LayerNorm_type=LayerNorm_type) for i in range(num_blocks[1])])
-
-        self.down2_3 = Downsample(int(dim * 2 ** 1))  ## From Level 2 to Level 3
-        self.encoder_level3 = nn.Sequential(*[
-            TransformerBlock(dim=int(dim * 2 ** 2), num_heads=heads[2], ffn_expansion_factor=ffn_expansion_factor,
-                             bias=bias, LayerNorm_type=LayerNorm_type) for i in range(num_blocks[2])])
-
-        self.down3_4 = Downsample(int(dim * 2 ** 2))  ## From Level 3 to Level 4
-        self.latent = nn.Sequential(*[
-            TransformerBlock(dim=int(dim * 2 ** 3), num_heads=heads[3], ffn_expansion_factor=ffn_expansion_factor,
-                             bias=bias, LayerNorm_type=LayerNorm_type) for i in range(num_blocks[3])])
-
-        self.up4_3 = Upsample(int(dim * 2 ** 3))  ## From Level 4 to Level 3
-        self.reduce_chan_level3 = nn.Conv2d(int(dim * 2 ** 3), int(dim * 2 ** 2), kernel_size=1, bias=bias)
-        self.decoder_level3 = nn.Sequential(*[
-            TransformerBlock(dim=int(dim * 2 ** 2), num_heads=heads[2], ffn_expansion_factor=ffn_expansion_factor,
-                             bias=bias, LayerNorm_type=LayerNorm_type) for i in range(num_blocks[2])])
-
-        self.up3_2 = Upsample(int(dim * 2 ** 2))  ## From Level 3 to Level 2
-        self.reduce_chan_level2 = nn.Conv2d(int(dim * 2 ** 2), int(dim * 2 ** 1), kernel_size=1, bias=bias)
-        self.decoder_level2 = nn.Sequential(*[
-            TransformerBlock(dim=int(dim * 2 ** 1), num_heads=heads[1], ffn_expansion_factor=ffn_expansion_factor,
-                             bias=bias, LayerNorm_type=LayerNorm_type) for i in range(num_blocks[1])])
-
-        self.up2_1 = Upsample(int(dim * 2 ** 1))  ## From Level 2 to Level 1  (NO 1x1 conv to reduce channels)
-
-        self.decoder_level1 = nn.Sequential(*[
-            TransformerBlock(dim=int(dim * 2 ** 1), num_heads=heads[0], ffn_expansion_factor=ffn_expansion_factor,
-                             bias=bias, LayerNorm_type=LayerNorm_type) for i in range(num_blocks[0])])
-
-        self.refinement = nn.Sequential(*[
-            TransformerBlock(dim=int(dim * 2 ** 1), num_heads=heads[0], ffn_expansion_factor=ffn_expansion_factor,
-                             bias=bias, LayerNorm_type=LayerNorm_type) for i in range(num_refinement_blocks)])
-
-        #### For Dual-Pixel Defocus Deblurring Task ####
-        self.dual_pixel_task = dual_pixel_task
-        if self.dual_pixel_task:
-            self.skip_conv = nn.Conv2d(dim, int(dim * 2 ** 1), kernel_size=1, bias=bias)
-        ###########################
-        self.output = nn.Conv2d(int(dim * 2 ** 1), out_channels, kernel_size=3, stride=1, padding=1, bias=bias)
-
-
-
-    def forward(self, inp_img):
-
-        # encoder_block1
-        inp_enc_level1 = self.patch_embed(inp_img)
-        out_enc_level1 = self.encoder_level1(inp_enc_level1)
-
-        # encoder_block2
-        inp_enc_level2 = self.down1_2(out_enc_level1)
-        out_enc_level2 = self.encoder_level2(inp_enc_level2)
-
-        # encoder_block3
-        inp_enc_level3 = self.down2_3(out_enc_level2)
-        out_enc_level3 = self.encoder_level3(inp_enc_level3)
-
-        # encoder_block4 h/8,w/8,8c
-        inp_enc_level4 = self.down3_4(out_enc_level3)
-        latent = self.latent(inp_enc_level4)
-
-
-
-        # return latent
-
-
-        #
-        inp_dec_level3 = self.up4_3(latent)
-        inp_dec_level3 = torch.cat([inp_dec_level3, out_enc_level3], 1)
-        inp_dec_level3 = self.reduce_chan_level3(inp_dec_level3)
-        out_dec_level3 = self.decoder_level3(inp_dec_level3) # 192 32 32
-
-        # dec2_param, weight2 = self.prompt2(out_dec_level3)
-        # out_dec_level3 = torch.cat([out_dec_level3, dec2_param], 1)
-        # out_dec_level3 = self.noise_level2(out_dec_level3)
-        # out_dec_level3 = self.reduce_noise_level2(out_dec_level3)
-
-
-        inp_dec_level2 = self.up3_2(out_dec_level3)
-        inp_dec_level2 = torch.cat([inp_dec_level2, out_enc_level2], 1)
-        inp_dec_level2 = self.reduce_chan_level2(inp_dec_level2)
-        out_dec_level2 = self.decoder_level2(inp_dec_level2) # 96 64 64
-
-        # prompt1
-        # dec1_param, weight3 = self.prompt1(out_dec_level2)
-        # out_dec_level2 = torch.cat([out_dec_level2, dec1_param], 1)
-        # out_dec_level2 = self.noise_level1(out_dec_level2)
-        # out_dec_level2 = self.reduce_noise_level1(out_dec_level2)
-
-
-
-        inp_dec_level1 = self.up2_1(out_dec_level2)
-        inp_dec_level1 = torch.cat([inp_dec_level1, out_enc_level1], 1)
-        out_dec_level1 = self.decoder_level1(inp_dec_level1)
-
-        out_dec_level1 = self.refinement(out_dec_level1) # 96 128 128
-
-        #### For Dual-Pixel Defocus Deblurring Task ####
-        if self.dual_pixel_task:
-            out_dec_level1 = out_dec_level1 + self.skip_conv(inp_enc_level1)
-            out_dec_level1 = self.output(out_dec_level1)
-        ###########################
-        else:
-            out_dec_level1 = self.output(out_dec_level1) + inp_img
-
-        # return out_dec_level1, latent, out_dec_level3, out_dec_level2, x4
-        return out_dec_level1,latent
 
 
 class add_model(nn.Module):

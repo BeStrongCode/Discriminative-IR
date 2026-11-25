@@ -9,20 +9,18 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
-# from test import test_Denoise
+
 from utils.dataset_utils import PromptTrainDataset, DenoiseTestDataset, DerainDehazeDataset
-from net.model import Restormer_orgin
-# from net.model_zd_zc import Restormer
+
 from net.PromptIR import PromptIR
-from net.model import Restormer
+from net.model import DisIR
 from utils.schedulers import LinearWarmupCosineAnnealingLR
 import numpy as np
 import wandb
 import os
 os.environ["http_proxy"] = "http://127.0.0.1:7890/"
 os.environ["https_proxy"] = "http://127.0.0.1:7890/"
-# wandb.login(key='403a08bb112279b0df3eeaf16e08e02f8e5fc634')
-# os.environ["WANDB_MODE"] = "offline"
+
 from options import options as opt
 import lightning.pytorch as pl
 from lightning.pytorch.loggers import WandbLogger,TensorBoardLogger
@@ -73,128 +71,6 @@ def test_Derain_Dehaze(net, dataset, task="derain"):
             ssim.update(temp_ssim, N)
         print(f"{task}:PSNR: %.2f, SSIM: %.4f" % (psnr.avg, ssim.avg))
         return psnr.avg,ssim.avg
-
-# def test_Denoise(model, dataset, sigma=15):
-#     # output_path = testopt.output_path + 'denoise/' + str(sigma) + '/'
-#     # subprocess.check_output(['mkdir', '-p', output_path])
-#     #
-#
-#     dataset.set_sigma(sigma)
-#     testloader = DataLoader(dataset, batch_size=1, pin_memory=True, shuffle=False, num_workers=0)
-#
-#     psnr = AverageMeter()
-#     ssim = AverageMeter()
-#
-#     with torch.no_grad():
-#         for ([clean_name], degrad_patch, clean_patch) in tqdm(testloader):
-#             input_, clean_patch = degrad_patch.cuda(), clean_patch.cuda()
-#             height, width = input_.shape[2], input_.shape[3]
-#             img_multiple_of = 8
-#             H, W = ((height + img_multiple_of) // img_multiple_of) * img_multiple_of, (
-#                         (width + img_multiple_of) // img_multiple_of) * img_multiple_of
-#             padh = H - height if height % img_multiple_of != 0 else 0
-#             padw = W - width if width % img_multiple_of != 0 else 0
-#             input_ = F.pad(input_, (0, padw, 0, padh), 'reflect')
-#
-#             # restored, _ = net(degrad_patch)
-#
-#             # test the image tile by tile
-#             b, c, h, w = input_.shape
-#             tile = min(128, h, w)
-#             assert tile % 8 == 0, "tile size should be multiple of 8"
-#             tile_overlap = 32
-#
-#             stride = tile - tile_overlap
-#             h_idx_list = list(range(0, h-tile, stride)) + [h-tile]
-#             w_idx_list = list(range(0, w-tile, stride)) + [w-tile]
-#             E = torch.zeros(b, c, h, w).type_as(input_)
-#             W = torch.zeros_like(E)
-#
-#             for h_idx in h_idx_list:
-#                 for w_idx in w_idx_list:
-#                     in_patch = input_[..., h_idx:h_idx+tile, w_idx:w_idx+tile]
-#                     out_patch, _ = model(in_patch)
-#                     out_patch_mask = torch.ones_like(out_patch)
-#
-#                     E[..., h_idx:(h_idx+tile), w_idx:(w_idx+tile)].add_(out_patch)
-#                     W[..., h_idx:(h_idx+tile), w_idx:(w_idx+tile)].add_(out_patch_mask)
-#             restored = E.div_(W)
-#
-#             restored = torch.clamp(restored, 0, 1)
-#
-#             # Unpad the output
-#             restored = restored[:, :, :height, :width]
-#
-#
-#             temp_psnr, temp_ssim, N = compute_psnr_ssim(restored, clean_patch)
-#
-#             psnr.update(temp_psnr, N)
-#             ssim.update(temp_ssim, N)
-#             # save_image_tensor(restored, output_path + clean_name[0] + '.png')
-#
-#         print("Denoise sigma=%d: psnr: %.2f, ssim: %.4f" % (sigma, psnr.avg, ssim.avg))
-#         return psnr.avg, ssim.avg
-#
-#
-# def test_Derain_Dehaze(model, dataset, task="derain"):
-#     # output_path = testopt.output_path + task + '/'
-#     # subprocess.check_output(['mkdir', '-p', output_path])
-#     #
-#     dataset.set_dataset(task)
-#     testloader = DataLoader(dataset, batch_size=1, pin_memory=True, shuffle=False, num_workers=0)
-#
-#     psnr = AverageMeter()
-#     ssim = AverageMeter()
-#
-#     with torch.no_grad():
-#         for ([degraded_name], degrad_patch, clean_patch) in tqdm(testloader):
-#             input_, clean_patch = degrad_patch.cuda(), clean_patch.cuda()
-#
-#
-#             height, width = input_.shape[2], input_.shape[3]
-#             img_multiple_of = 8
-#             H, W = ((height + img_multiple_of) // img_multiple_of) * img_multiple_of, (
-#                         (width + img_multiple_of) // img_multiple_of) * img_multiple_of
-#             padh = H - height if height % img_multiple_of != 0 else 0
-#             padw = W - width if width % img_multiple_of != 0 else 0
-#             input_ = F.pad(input_, (0, padw, 0, padh), 'reflect')
-#
-#
-#             # test the image tile by tile
-#             b, c, h, w = input_.shape
-#             tile = min(128, h, w)
-#             assert tile % 8 == 0, "tile size should be multiple of 8"
-#             tile_overlap = 32
-#
-#             stride = tile - tile_overlap
-#             h_idx_list = list(range(0, h-tile, stride)) + [h-tile]
-#             w_idx_list = list(range(0, w-tile, stride)) + [w-tile]
-#             E = torch.zeros(b, c, h, w).type_as(input_)
-#             W = torch.zeros_like(E)
-#
-#             for h_idx in h_idx_list:
-#                 for w_idx in w_idx_list:
-#                     in_patch = input_[..., h_idx:h_idx+tile, w_idx:w_idx+tile]
-#                     out_patch, _ = model(in_patch)
-#                     out_patch_mask = torch.ones_like(out_patch)
-#
-#                     E[..., h_idx:(h_idx+tile), w_idx:(w_idx+tile)].add_(out_patch)
-#                     W[..., h_idx:(h_idx+tile), w_idx:(w_idx+tile)].add_(out_patch_mask)
-#             restored = E.div_(W)
-#
-#             restored = torch.clamp(restored, 0, 1)
-#
-#             # Unpad the output
-#             restored = restored[:, :, :height, :width]
-#
-#
-#             temp_psnr, temp_ssim, N = compute_psnr_ssim(restored, clean_patch)
-#             psnr.update(temp_psnr, N)
-#             ssim.update(temp_ssim, N)
-#             #
-#             # save_image_tensor(restored, output_path + degraded_name[0] + '.png')
-#         print("PSNR: %.2f, SSIM: %.4f" % (psnr.avg, ssim.avg))
-#         return psnr.avg, ssim.avg
 
 class DegradationClassifier(nn.Module):
     def __init__(self, in_channels, num_classes=5, hidden_dim=128):
@@ -331,7 +207,7 @@ class RestormerModel(pl.LightningModule):
         self.use_degradation_cls = use_degradation_cls
         self.cls_loss_weight = cls_loss_weight
 
-        self.net = Restormer()
+        self.net = DisIR()
         self.loss_fn = nn.L1Loss()
 
         self.cls_head = None
@@ -392,11 +268,7 @@ class RestormerModel(pl.LightningModule):
 def main():
     print("Options")
     print(opt)
-    # if opt.wblogger is not None:
-    #     logger  = WandbLogger(project=opt.wblogger,name="Restormer-gumbel1+maxpool+3pgm")
-    # else:
-    #     logger = TensorBoardLogger(save_dir = "logs/")
-    
+
     trainset = PromptTrainDataset(opt)
     checkpoint_callback = ModelCheckpoint(dirpath = opt.ckpt_dir,every_n_epochs = 1,save_top_k=-1)
     trainloader = DataLoader(trainset, batch_size=opt.batch_size, pin_memory=True, shuffle=True,
