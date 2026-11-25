@@ -758,7 +758,7 @@ class Restormer(nn.Module):
 
 
         # prompt3  class = prompt_len
-        self.prompt3 = Maxpool_gumbel_PromptGenBlock(prompt_dim=320, prompt_len=3, prompt_size=16, lin_dim=384)
+        self.prompt3 = Maxpool_gumbel_PromptGenBlock(prompt_dim=320, prompt_len=7, prompt_size=16, lin_dim=384)
         # self.prompt3 = ChannelAttn_PromptGenBlock(prompt_dim=320, prompt_len=5, prompt_size=16, lin_dim=384)
         # # self.fftprompt = LearnFFTPromptGenBlock(prompt_dim=320, prompt_len=5, prompt_size=16, lin_dim=384)
         # # # self.channel_prompt = channel_prompt(ch=384)

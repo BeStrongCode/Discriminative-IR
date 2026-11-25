@@ -196,7 +196,19 @@ def test_Derain_Dehaze(net, dataset, task="derain"):
 #         print("PSNR: %.2f, SSIM: %.4f" % (psnr.avg, ssim.avg))
 #         return psnr.avg, ssim.avg
 
+class DegradationClassifier(nn.Module):
+    def __init__(self, in_channels, num_classes=5, hidden_dim=128):
+        super().__init__()
+        self.head = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(1),
+            nn.Linear(in_channels, hidden_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_dim, num_classes),
+        )
 
+    def forward(self, latent):
+        return self.head(latent)
 
 
 class ManualEvalCallback(Callback):
@@ -312,35 +324,50 @@ class PromptIRModel(pl.LightningModule):
 
 
 class RestormerModel(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, use_degradation_cls=False, cls_loss_weight=0.1, num_degradation_classes=5):
         super().__init__()
-        self.net = PromptIR()
+ 
+        self.save_hyperparameters()
+        self.use_degradation_cls = use_degradation_cls
+        self.cls_loss_weight = cls_loss_weight
+
+        self.net = Restormer()
         self.loss_fn = nn.L1Loss()
+
+        self.cls_head = None
+        if self.use_degradation_cls:
+            # Both backbones feed the returned latent into the first decoder upsample.
+            latent_channels = self.net.up4_3.body[0].in_channels
+            self.cls_head = DegradationClassifier(latent_channels, num_degradation_classes)
+            self.criterion = nn.CrossEntropyLoss()
+
         # self.criterion = nn.CrossEntropyLoss()
         # 冻结编码层
         # self.freeze_encoder_layer()
     def forward(self, x):
         restored = self.net(x)
         return restored
-
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
         # it is independent of forward
         ([clean_name, de_id], degrad_patch, clean_patch) = batch
-        restored, _ = self.net(degrad_patch)
-        # label = de_id
+        restored, latent = self.net(degrad_patch)
         restor_loss = self.loss_fn(restored, clean_patch)
-        # cls_loss = self.criterion(cls,label)
         loss = restor_loss
 
-
+        if self.use_degradation_cls:
+            logits = self.cls_head(latent)
+            labels = torch.as_tensor(de_id, device=logits.device, dtype=torch.long).view(-1)
+            cls_loss = self.criterion(logits, labels)
+            loss = restor_loss + self.cls_loss_weight * cls_loss
+            self.log("cls_loss", cls_loss)
 
         # Logging to TensorBoard (if installed) by default
         self.log("train_loss", loss)
-        # self.log("restor_loss", restor_loss)
-        # self.log("cls_loss", cls_loss)
+        self.log("restor_loss", restor_loss)
 
         return loss
+
 
     def lr_scheduler_step(self, scheduler, metric):
         scheduler.step(self.current_epoch)
@@ -382,23 +409,23 @@ def main():
 
     # ckpt_path = '/media/hy/hhh/all-in-one-image-restoration/PromptIR-main/train_ckpt/3D/Restormer-max_zdzc_AdamW10/epoch=115-32.6635_0.9176.ckpt'
     # 加载 Restormer 权重
-    ckpt_path = "/media/hy/hhh/all-in-one-image-restoration/PromptIR-main/Pretrain/3D/PromptIR/checkpoint_epoch_V1_0010_loss0.0002.pth.tar"  # 你的 Restormer 预训练权重路径
-    state_dict = torch.load(ckpt_path, map_location="cpu")
-    state_dict = state_dict['state_dict']
+    # ckpt_path = "/media/hy/hhh/all-in-one-image-restoration/PromptIR-main/Pretrain/3D/PromptIR/checkpoint_epoch_V1_0010_loss0.0002.pth.tar"  # 你的 Restormer 预训练权重路径
+    # state_dict = torch.load(ckpt_path, map_location="cpu")
+    # state_dict = state_dict['state_dict']
 
-    model = RestormerModel().cuda()
+    model = RestormerModel(
+        use_degradation_cls=opt.use_degradation_cls,
+        cls_loss_weight=opt.cls_loss_weight,
+        num_degradation_classes=opt.num_degradation_classes,
+    ).cuda()
     # 只加载 net 部分
-    model.net.load_state_dict(state_dict, strict=True)
+    # model.net.load_state_dict(state_dict, strict=True)
     # model.net.prompt3.prompt_param.requires_grad = False
 
     # 微调
     # model = RestormerModel().load_from_checkpoint(ckpt_path).cuda()
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--denoise_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/denoising/CBSD68/')
-    parser.add_argument('--derain_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/deraining/Rain100L/')
-    parser.add_argument('--dehaze_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/dehazing/SOTS/outdoor/')
-    testopt = parser.parse_args()
+    testopt = opt
 
 
 

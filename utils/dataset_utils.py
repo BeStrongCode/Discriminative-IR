@@ -919,7 +919,7 @@ class RealwolrdDataset(Dataset):
         self.task_idx = 0
         self.args = args
 
-        self.task_dict = {'derain': 0, 'dehaze': 1, 'deblur': 2, 'lowlight': 3, 'desnow': 4}
+        self.task_dict = {'derain': 0, 'dehaze': 1, 'deblur': 2, 'lowlight': 3, 'desnow': 4, 'unseen': 5}
         self.toTensor = ToTensor()
         self.addnoise = addnoise
         self.sigma = sigma
@@ -955,6 +955,16 @@ class RealwolrdDataset(Dataset):
             name_list = os.listdir(self.args.rd_desnow_path + 'input/')
             self.ids += [self.args.rd_desnow_path + 'input/' + id_ for id_ in name_list]
 
+        elif self.task_idx == 5:
+            extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff')
+            self.ids = [os.path.join(self.args.unseen_path, name)
+                        for name in sorted(os.listdir(self.args.unseen_path))
+                        if name.lower().endswith(extensions)
+                        and os.path.isfile(os.path.join(self.args.unseen_path, name))]
+            if not self.ids:
+                raise ValueError(f'No images found in unseen_path: {self.args.unseen_path}')
+
+
         self.length = len(self.ids)
 
     def _get_gt_path(self, degraded_name):
@@ -985,6 +995,12 @@ class RealwolrdDataset(Dataset):
             # # name = degraded_name.split('/')[-1]
             # gt_name = dir_name + name
             gt_name = degraded_name.replace("input", "target")
+
+        elif self.task_idx == 5:
+            gt_path = getattr(self.args, 'unseen_gt_path', None)
+            if gt_path is None:
+                gt_path = os.path.join(os.path.dirname(os.path.normpath(self.args.unseen_path)), 'Gt')
+            gt_name = os.path.join(gt_path, os.path.basename(degraded_name))
         return gt_name
 
     def set_dataset(self, task):
@@ -1001,7 +1017,7 @@ class RealwolrdDataset(Dataset):
         clean_img = crop_img(np.array(Image.open(clean_path).convert('RGB')), base=16)
 
         clean_img, degraded_img = self.toTensor(clean_img), self.toTensor(degraded_img)
-        degraded_name = degraded_path.split('/')[-1][:-4]
+        degraded_name = os.path.splitext(os.path.basename(degraded_path))[0]
 
         return [degraded_name], degraded_img, clean_img
 

@@ -9,7 +9,6 @@ import os
 import torch.nn as nn
 from utils.dataset_utils import RealwolrdDataset
 from train import RestormerModel
-from train_5D import test_Deblur, test_Lowlight
 from utils.dataset_utils import DenoiseTestDataset, DerainDehazeDataset
 from utils.val_utils import AverageMeter, compute_psnr_ssim
 from utils.image_io import save_image_tensor
@@ -104,28 +103,30 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Input Parameters
     parser.add_argument('--cuda', type=int, default=0)
-    parser.add_argument('--mode', type=int, default=5,
+    parser.add_argument('--mode', type=int, default=4,
                         help='0 for denoise, 1 for derain, 2 for dehaze, 3 for all-in-one, 4 for 5D, 5 for realworld, 6 for unseen')
     parser.add_argument('--rd_dehaze_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/WeatherBench/haze/test/", help='save path of test haze images')
     parser.add_argument('--rd_desnow_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/WeatherBench/snow/test/", help='save path of test snow images')
     parser.add_argument('--rd_derain_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/WeatherBench/rain/test/", help='save path of test rain images')
     
-    parser.add_argument('--unseen_path', type=str, default="/media/hy/Elements/bw/AllInOne/datasets/Snow/CSD/Test/Snow", help='save path of unseen path')
+    parser.add_argument('--unseen_path', type=str, default="/media/hy/Elements/bw/AllInOne/datasets/Snow/CSD/Test/Snow", help='path of unseen degraded images')
+    parser.add_argument('--unseen_gt_path', type=str, default=None,
+                        help='path of unseen ground-truth images (default: Gt beside unseen_path)')
     
     parser.add_argument('--denoise_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/denoising/", help='save path of test noisy images')
     parser.add_argument('--derain_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/deraining/", help='save path of test raining images')
     parser.add_argument('--dehaze_path', type=str, default="/media/hy/hhh/all-in-one-image-restoration/dataset/dehazing/SOTS/outdoor/", help='save path of test hazy images')
     parser.add_argument('--deblur_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/deblurring/GOPRO_Large/test1/')
     parser.add_argument('--lowlight_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/low-light/LOLdataset/test/')
-    parser.add_argument('--output_path', type=str, default="output/Real_world/Dis-IR", help='output save path')
-    parser.add_argument('--ckpt_name', type=str, default="train_ckpt/3D/Restormer-max_pgm_gumbel_AdamW_epoch10_finetune192_2e4/epoch=3-32.82.ckpt", help='checkpoint save path')
+    parser.add_argument('--output_path', type=str, default="output/5D/Ours", help='output save path')
+    parser.add_argument('--ckpt_name', type=str, default="train_ckpt/5D/Restormer-max_pgm_gumbel_AdamW10_fintune192/epoch=116-30.45.ckpt", help='checkpoint save path')
     testopt = parser.parse_args()
     
     
 
     np.random.seed(0)
     torch.manual_seed(0)
-    torch.cuda.set_device(testopt.cuda)
+    # torch.cuda.set_device(testopt.cuda)
 
 
     ckpt_path =  testopt.ckpt_name
@@ -138,18 +139,19 @@ if __name__ == '__main__':
     denoise_tests = []
     derain_tests = []
 
-    base_path = testopt.denoise_path
-    for i in denoise_splits:
-        testopt.denoise_path = os.path.join(base_path,i)
-        denoise_testset = DenoiseTestDataset(testopt)
-        denoise_tests.append(denoise_testset)
+    if testopt.mode in (0, 3, 4):
+        base_path = testopt.denoise_path
+        for i in denoise_splits:
+            testopt.denoise_path = os.path.join(base_path,i)
+            denoise_testset = DenoiseTestDataset(testopt)
+            denoise_tests.append(denoise_testset)
 
 
 
     print("CKPT name : {}".format(ckpt_path))
 
     # net  = PromptIRModel().load_from_checkpoint(ckpt_path).cuda()
-    net  = RestormerModel().load_from_checkpoint(ckpt_path).cuda()
+    net  = RestormerModel.load_from_checkpoint(ckpt_path).cuda()
     net.eval()
     total_psnr = 0
     total_ssim = 0
@@ -288,5 +290,14 @@ if __name__ == '__main__':
             total_ssim += ssim
 
             print(f'avg_psnr:{total_psnr/3}, avg_ssim:{total_ssim/3}')
+
+        elif testopt.mode == 6:
+            print('Start testing unseen images...')
+            unseen_set = RealwolrdDataset(testopt, task="unseen", addnoise=False, sigma=15)
+            psnr, ssim = test_Derain_Dehaze(net, unseen_set, task="unseen")
+            total_psnr += psnr
+            total_ssim += ssim
+
+            print(f'avg_psnr:{total_psnr}, avg_ssim:{total_ssim}')
 
 
