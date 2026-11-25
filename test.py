@@ -119,7 +119,7 @@ if __name__ == '__main__':
     parser.add_argument('--deblur_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/deblurring/GOPRO_Large/test1/')
     parser.add_argument('--lowlight_path', type=str, default='/media/hy/hhh/all-in-one-image-restoration/dataset/low-light/LOLdataset/test/')
     parser.add_argument('--output_path', type=str, default="output/5D/Ours", help='output save path')
-    parser.add_argument('--ckpt_name', type=str, default="train_ckpt/5D/Restormer-max_pgm_gumbel_AdamW10_fintune192/epoch=116-30.45.ckpt", help='checkpoint save path')
+    parser.add_argument('--ckpt_name', type=str, default="ckpt/epoch=116-30.45.ckpt", help='checkpoint save path')
     testopt = parser.parse_args()
     
     

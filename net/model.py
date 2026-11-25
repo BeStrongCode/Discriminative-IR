@@ -679,7 +679,7 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
 
 
 
-class Restormer(nn.Module):
+class DiscriminativeIR(nn.Module):
     def __init__(self,
                  inp_channels=3,
                  out_channels=3,
@@ -693,7 +693,7 @@ class Restormer(nn.Module):
                  dual_pixel_task=False  ## True for dual-pixel defocus deblurring only. Also set inp_channels=6
                  ):
 
-        super(Restormer, self).__init__()
+        super(DiscriminativeIR, self).__init__()
 
         self.patch_embed = OverlapPatchEmbed(inp_channels, dim)
 
