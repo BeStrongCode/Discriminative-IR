@@ -15,8 +15,8 @@ import numbers
 from einops import rearrange
 from einops.layers.torch import Rearrange
 import time
-from net.crossPromptAttention import Prompt
-from net.LearnFFT1 import LearnableRFFT2, LearnableIRFFT2
+
+
 
 
 ##########################################################################

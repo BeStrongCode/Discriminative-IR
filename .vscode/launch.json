@@ -14,17 +14,6 @@
             "console": "integratedTerminal",
             "justMyCode": true
         },
-        {
-            "name": "pretrain_3D",
-            "type": "python",
-            "request": "launch",
-            "cwd": "/media/hy/hhh/all-in-one-image-restoration/PromptIR-main",
-            "program": "/media/hy/hhh/all-in-one-image-restoration/PromptIR-main/Pretrain/pretrain_classifer3D.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-                "env": {
-        "PYTHONPATH": "/media/hy/hhh/all-in-one-image-restoration/PromptIR-main"
-    }
-        },
+
     ]
 }
